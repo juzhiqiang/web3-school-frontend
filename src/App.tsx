@@ -23,20 +23,18 @@ function App() {
         <RainbowKitProvider>
           <Web3Provider>
             <Router>
-              <div className="App">
-                <Routes>
-                  <Route path="/" element={<Layout />}>
-                    <Route index element={<CourseListing />} />
-                    <Route path="create-course" element={<CreateCourse />} />
-                    <Route path="financial" element={<Financial />} />
-                    <Route path="profile" element={<Profile />} />
-                    <Route path="course/:id" element={<CourseDetails />} />
-                    <Route path="course/:id/preview" element={<CourseDetails preview />} />
-                    <Route path="course/:id/learn" element={<CourseDetails learn />} />
-                    <Route path="course/:id/details" element={<CourseDetails details />} />
-                  </Route>
-                </Routes>
-              </div>
+              <Routes>
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<CourseListing />} />
+                  <Route path="create-course" element={<CreateCourse />} />
+                  <Route path="financial" element={<Financial />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="course/:id" element={<CourseDetails />} />
+                  <Route path="course/:id/preview" element={<CourseDetails preview />} />
+                  <Route path="course/:id/learn" element={<CourseDetails learn />} />
+                  <Route path="course/:id/details" element={<CourseDetails details />} />
+                </Route>
+              </Routes>
             </Router>
           </Web3Provider>
         </RainbowKitProvider>
