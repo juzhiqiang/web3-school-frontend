@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, Users, Star } from 'lucide-react'
+import { Clock, Users, Star, BookOpen } from 'lucide-react'
 
 function CourseListing() {
   // 模拟课程数据
