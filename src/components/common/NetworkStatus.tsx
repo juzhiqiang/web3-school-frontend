@@ -1,18 +1,18 @@
 import React from 'react'
-import { useAccount, useNetwork } from 'wagmi'
+import { useAccount, useChainId } from 'wagmi'
 import { AlertTriangle, Wifi } from 'lucide-react'
 import { isTestNetwork, getNetworkName, TESTNET_WARNING } from '../../utils/contracts'
 
 const NetworkStatus: React.FC = () => {
   const { isConnected } = useAccount()
-  const { chain } = useNetwork()
+  const chainId = useChainId()
 
-  if (!isConnected || !chain) {
+  if (!isConnected || !chainId) {
     return null
   }
 
-  const isTestNet = isTestNetwork(chain.id)
-  const networkName = getNetworkName(chain.id)
+  const isTestNet = isTestNetwork(chainId)
+  const networkName = getNetworkName(chainId)
 
   return (
     <div className="fixed top-20 right-4 z-50">
