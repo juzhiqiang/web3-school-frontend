@@ -6,12 +6,12 @@ import { BookOpen, User, PlusCircle, TrendingUp } from 'lucide-react'
 
 const Header: React.FC = () => {
   const location = useLocation()
-  const { isConnected, userProfile } = useWeb3()
+  const { isConnected } = useWeb3()
 
   const navItems = [
     { path: '/', label: '课程市场', icon: BookOpen },
     { path: '/create-course', label: '创建课程', icon: PlusCircle, requiresConnection: true },
-    { path: '/financial', label: '理财中心', icon: TrendingUp, requiresConnection: true },
+    { path: '/financial', label: '财务中心', icon: TrendingUp, requiresConnection: true },
     { path: '/profile', label: '个人中心', icon: User, requiresConnection: true },
   ]
 
@@ -25,7 +25,7 @@ const Header: React.FC = () => {
               <BookOpen className="h-6 w-6 text-white" />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Web3 School
+              Web3学院
             </span>
           </Link>
 
@@ -60,17 +60,8 @@ const Header: React.FC = () => {
             })}
           </nav>
 
-          {/* User info and connect button */}
+          {/* Connect Button */}
           <div className="flex items-center space-x-4">
-            {isConnected && userProfile && (
-              <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-600">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium">
-                  {userProfile.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="font-medium">{userProfile.name}</span>
-              </div>
-            )}
-            
             <ConnectButton.Custom>
               {({
                 account,
@@ -146,7 +137,7 @@ const Header: React.FC = () => {
                               >
                                 {chain.iconUrl && (
                                   <img
-                                    alt={chain.name ?? 'Chain icon'}
+                                    alt={chain.name ?? '链图标'}
                                     src={chain.iconUrl}
                                     style={{ width: 12, height: 12 }}
                                   />
@@ -168,7 +159,7 @@ const Header: React.FC = () => {
                           </button>
                         </div>
                       )
-                    })()} 
+                    })()}
                   </div>
                 )
               }}
