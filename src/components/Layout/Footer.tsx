@@ -14,7 +14,7 @@ const Footer: React.FC = () => {
                 <BookOpen className="h-6 w-6 text-white" />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Web3 School
+                Web3学院
               </span>
             </div>
             <p className="text-gray-600 text-sm mb-4 max-w-md">
@@ -51,7 +51,7 @@ const Footer: React.FC = () => {
               </li>
               <li>
                 <Link to="/financial" className="text-gray-600 hover:text-blue-600 text-sm transition-colors">
-                  理财中心
+                  财务中心
                 </Link>
               </li>
               <li>
@@ -95,11 +95,11 @@ const Footer: React.FC = () => {
         <div className="mt-8 pt-8 border-t border-gray-200">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-500 text-sm">
-              © 2025 Web3 School. All rights reserved.
+              © 2025 Web3学院. 保留所有权利.
             </p>
             <div className="mt-4 md:mt-0">
               <p className="text-gray-500 text-xs">
-                Built with ❤️ on Ethereum
+                基于以太坊构建 ❤️
               </p>
             </div>
           </div>
