@@ -15,20 +15,12 @@ import {
   ERROR_MESSAGES,
 } from "../config/tokenSwap";
 
-// 合约ABI（根据合约代码生成）
+// 合约ABI
 const TOKEN_SWAP_ABI = [
   {
     inputs: [
-      {
-        internalType: "address",
-        name: "_tokenAddress",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "_rate",
-        type: "uint256",
-      },
+      { internalType: "address", name: "_tokenAddress", type: "address" },
+      { internalType: "uint256", name: "_rate", type: "uint256" }
     ],
     stateMutability: "nonpayable",
     type: "constructor",
@@ -86,12 +78,7 @@ const TOKEN_SWAP_ABI = [
   {
     anonymous: false,
     inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+      { indexed: false, internalType: "uint256", name: "amount", type: "uint256" }
     ],
     name: "ETHDeposited",
     type: "event",
@@ -99,12 +86,7 @@ const TOKEN_SWAP_ABI = [
   {
     anonymous: false,
     inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+      { indexed: false, internalType: "uint256", name: "amount", type: "uint256" }
     ],
     name: "ETHWithdrawn",
     type: "event",
@@ -112,138 +94,10 @@ const TOKEN_SWAP_ABI = [
   {
     anonymous: false,
     inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "oldBuyFee",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "newBuyFee",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "oldSellFee",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "newSellFee",
-        type: "uint256",
-      },
-    ],
-    name: "FeeRateUpdated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "FeesWithdrawn",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "previousOwner",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "newOwner",
-        type: "address",
-      },
-    ],
-    name: "OwnershipTransferred",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "address",
-        name: "account",
-        type: "address",
-      },
-    ],
-    name: "Paused",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "oldRate",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "newRate",
-        type: "uint256",
-      },
-    ],
-    name: "RateUpdated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "TokensDeposited",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "ethAmount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "tokenAmount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "fee",
-        type: "uint256",
-      },
+      { indexed: true, internalType: "address", name: "buyer", type: "address" },
+      { indexed: false, internalType: "uint256", name: "ethAmount", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "tokenAmount", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "fee", type: "uint256" }
     ],
     name: "TokensPurchased",
     type: "event",
@@ -251,219 +105,32 @@ const TOKEN_SWAP_ABI = [
   {
     anonymous: false,
     inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "seller",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "tokenAmount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "ethAmount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "fee",
-        type: "uint256",
-      },
+      { indexed: true, internalType: "address", name: "seller", type: "address" },
+      { indexed: false, internalType: "uint256", name: "tokenAmount", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "ethAmount", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "fee", type: "uint256" }
     ],
     name: "TokensSold",
     type: "event",
   },
   {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "TokensWithdrawn",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "address",
-        name: "account",
-        type: "address",
-      },
-    ],
-    name: "Unpaused",
-    type: "event",
-  },
-  {
-    inputs: [],
-    name: "BASIS_POINTS",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [],
-    name: "MAX_FEE_RATE",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [],
-    name: "accumulatedFees",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [],
-    name: "buyFeeRate",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [],
-    name: "owner",
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [],
-    name: "paused",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
     inputs: [],
     name: "rate",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
     constant: true,
-  },
-  {
-    inputs: [],
-    name: "renounceOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "sellFeeRate",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "newOwner",
-        type: "address",
-      },
-    ],
-    name: "transferOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
   },
   {
     inputs: [],
     name: "yiDengToken",
-    outputs: [
-      {
-        internalType: "contract IERC20",
-        name: "",
-        type: "address",
-      },
-    ],
+    outputs: [{ internalType: "contract IERC20", name: "", type: "address" }],
     stateMutability: "view",
     type: "function",
     constant: true,
   },
   {
-    stateMutability: "payable",
-    type: "receive",
-    payable: true,
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "minTokenAmount",
-        type: "uint256",
-      },
-    ],
+    inputs: [{ internalType: "uint256", name: "minTokenAmount", type: "uint256" }],
     name: "buyTokens",
     outputs: [],
     stateMutability: "payable",
@@ -472,16 +139,8 @@ const TOKEN_SWAP_ABI = [
   },
   {
     inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenAmount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "minETHAmount",
-        type: "uint256",
-      },
+      { internalType: "uint256", name: "tokenAmount", type: "uint256" },
+      { internalType: "uint256", name: "minETHAmount", type: "uint256" }
     ],
     name: "sellTokens",
     outputs: [],
@@ -489,121 +148,9 @@ const TOKEN_SWAP_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "_rate",
-        type: "uint256",
-      },
-    ],
-    name: "setRate",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "_buyFeeRate",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_sellFeeRate",
-        type: "uint256",
-      },
-    ],
-    name: "setFeeRates",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "depositTokens",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "withdrawTokens",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "depositETH",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
-    payable: true,
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "withdrawETH",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "withdrawFees",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "pause",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "unpause",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "emergencyWithdraw",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
     inputs: [],
     name: "getTokenBalance",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
     constant: true,
@@ -611,73 +158,7 @@ const TOKEN_SWAP_ABI = [
   {
     inputs: [],
     name: "getETHBalance",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenAmount",
-        type: "uint256",
-      },
-    ],
-    name: "calculateETHForTokens",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "ethAmount",
-        type: "uint256",
-      },
-    ],
-    name: "calculateTokensForETH",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenAmount",
-        type: "uint256",
-      },
-    ],
-    name: "calculateETHForTokenSale",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
     constant: true,
@@ -686,30 +167,8 @@ const TOKEN_SWAP_ABI = [
     inputs: [],
     name: "getFeeRates",
     outputs: [
-      {
-        internalType: "uint256",
-        name: "buyFee",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "sellFee",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [],
-    name: "getAccumulatedFees",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+      { internalType: "uint256", name: "buyFee", type: "uint256" },
+      { internalType: "uint256", name: "sellFee", type: "uint256" }
     ],
     stateMutability: "view",
     type: "function",
@@ -717,7 +176,7 @@ const TOKEN_SWAP_ABI = [
   },
 ] as const;
 
-// ERC20 ABI (用于代币相关操作)
+// ERC20 ABI
 const ERC20_ABI = [
   {
     inputs: [{ internalType: "address", name: "owner", type: "address" }],
@@ -748,11 +207,15 @@ const ERC20_ABI = [
   },
 ] as const;
 
+// 最大授权金额常量
+const MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
+
 export function useTokenSwap() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const [isLoading, setIsLoading] = useState(false);
   const [contractAddress, setContractAddress] = useState<string>();
+  const [lastApprovalHash, setLastApprovalHash] = useState<string>();
 
   // 获取当前网络的合约地址
   useEffect(() => {
@@ -783,22 +246,20 @@ export function useTokenSwap() {
   });
 
   // 获取合约中的代币余额
-  const { data: contractTokenBalance, refetch: refetchContractTokenBalance } =
-    useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TOKEN_SWAP_ABI,
-      functionName: "getTokenBalance",
-      query: { enabled: !!contractAddress },
-    });
+  const { data: contractTokenBalance, refetch: refetchContractTokenBalance } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: TOKEN_SWAP_ABI,
+    functionName: "getTokenBalance",
+    query: { enabled: !!contractAddress },
+  });
 
   // 获取合约中的ETH余额
-  const { data: contractETHBalance, refetch: refetchContractETHBalance } =
-    useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TOKEN_SWAP_ABI,
-      functionName: "getETHBalance",
-      query: { enabled: !!contractAddress },
-    });
+  const { data: contractETHBalance, refetch: refetchContractETHBalance } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: TOKEN_SWAP_ABI,
+    functionName: "getETHBalance",
+    query: { enabled: !!contractAddress },
+  });
 
   // 获取一灯币合约地址
   const { data: yiDengTokenAddress, refetch: refetchTokenAddress, error: tokenAddressError } = useReadContract({
@@ -807,20 +268,6 @@ export function useTokenSwap() {
     functionName: 'yiDengToken',
     query: { enabled: !!contractAddress }
   })
-  
-  // 调试一灯币合约地址获取
-  useEffect(() => {
-    if (contractAddress) {
-      console.log(`🪙 获取一灯币合约地址从兑换合约: ${contractAddress}`)
-      if (yiDengTokenAddress) {
-        console.log(`✅ 一灯币合约地址: ${yiDengTokenAddress}`)
-      } else if (tokenAddressError) {
-        console.error(`❌ 获取一灯币合约地址失败:`, tokenAddressError)
-      } else {
-        console.log(`⏳ 正在获取一灯币合约地址...`)
-      }
-    }
-  }, [contractAddress, yiDengTokenAddress, tokenAddressError])
   
   // 获取用户的一灯币余额
   const { 
@@ -840,42 +287,22 @@ export function useTokenSwap() {
     }
   })
   
-  // 调试用户一灯币余额获取
-  useEffect(() => {
-    if (address && yiDengTokenAddress) {
-      console.log(`👤 获取用户余额:`, {
-        userAddress: address,
-        tokenAddress: yiDengTokenAddress,
-        isLoading: isLoadingUserBalance
-      })
-      
-      if (userTokenBalance !== undefined) {
-        console.log(`💰 用户一灯币余额 (raw):`, userTokenBalance.toString())
-        console.log(`💰 用户一灯币余额 (formatted):`, formatUnits(userTokenBalance, 18))
-      } else if (userBalanceError) {
-        console.error(`❌ 获取用户一灯币余额失败:`, userBalanceError)
-      }
-    }
-  }, [address, yiDengTokenAddress, userTokenBalance, userBalanceError, isLoadingUserBalance])
-  
-  // 获取用户对合约的授权额度
+  // 获取用户对合约的授权额度 - 关键修复：增加刷新频率
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: yiDengTokenAddress,
     abi: ERC20_ABI,
     functionName: "allowance",
-    args:
-      address && yiDengTokenAddress && contractAddress
-        ? [address, contractAddress as `0x${string}`]
-        : undefined,
-    query: { enabled: !!yiDengTokenAddress && !!address && !!contractAddress },
+    args: address && yiDengTokenAddress && contractAddress
+      ? [address, contractAddress as `0x${string}`]
+      : undefined,
+    query: { 
+      enabled: !!yiDengTokenAddress && !!address && !!contractAddress,
+      refetchInterval: 3000, // 每3秒刷新授权状态
+    },
   });
 
   const { writeContract, data: hash, error, isPending } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({
-      hash,
-    });
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
 
   // 刷新所有数据
   const refetchAll = () => {
@@ -893,17 +320,24 @@ export function useTokenSwap() {
   useEffect(() => {
     if (isConfirmed) {
       console.log('✅ 交易已确认，刷新数据...')
-      setTimeout(() => {
-        refetchAll()
-      }, 2000) // 延迟2秒刷新，确保区块链状态更新
+      
+      // 如果是授权交易，立即多次刷新授权状态
+      if (hash === lastApprovalHash) {
+        console.log('🔐 授权交易已确认，强制刷新授权状态')
+        refetchAllowance()
+        setTimeout(() => refetchAllowance(), 1000)
+        setTimeout(() => refetchAllowance(), 3000)
+        toast.success('授权已完成！现在可以进行兑换操作')
+      }
+      
+      setTimeout(() => refetchAll(), 2000)
     }
-  }, [isConfirmed])
+  }, [isConfirmed, hash, lastApprovalHash])
   
-  // 使用合约的计算函数而非本地计算
+  // 计算函数
   const calculateTokensForETH = (ethAmount: string): string => {
     if (!exchangeRate || !ethAmount || !contractAddress) return "0";
     try {
-      // 使用合约的计算逻辑
       const ethInWei = parseEther(ethAmount);
       const grossTokens = ethInWei * BigInt(exchangeRate.toString());
       const fee = feeRates
@@ -917,11 +351,9 @@ export function useTokenSwap() {
     }
   }
   
-  // 使用正确的出售计算逻辑
   const calculateETHForTokens = (tokenAmount: string): string => {
     if (!exchangeRate || !tokenAmount || !contractAddress) return "0";
     try {
-      // 使用合约的计算逻辑：先计算总ETH，再扣除手续费
       const tokensInWei = parseUnits(tokenAmount, 18);
       const grossETH = tokensInWei / BigInt(exchangeRate.toString());
       const fee = feeRates
@@ -942,11 +374,8 @@ export function useTokenSwap() {
       return;
     }
 
-    // 检查合约是否有足够的代币
     const expectedTokens = calculateTokensForETH(ethAmount);
-    const contractTokens = contractTokenBalance
-      ? parseFloat(contractTokenBalance)
-      : 0;
+    const contractTokens = contractTokenBalance ? parseFloat(contractTokenBalance) : 0;
     if (contractTokens < parseFloat(expectedTokens)) {
       toast.error("合约中代币库存不足，请联系管理员");
       return;
@@ -980,8 +409,6 @@ export function useTokenSwap() {
       toast.success(`购买交易已提交到 ${networkName}`);
     } catch (err: any) {
       console.error("购买代币失败:", err);
-
-      // 更详细的错误处理
       let errorMessage = "购买失败";
       if (err.message?.includes("InsufficientTokenBalance")) {
         errorMessage = "合约中代币库存不足";
@@ -992,33 +419,29 @@ export function useTokenSwap() {
       } else if (err.message) {
         errorMessage = `购买失败: ${err.message}`;
       }
-
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   }
   
-  // 授权代币函数
+  // 关键修复：改进的授权函数 - 使用无限授权
   const approveTokens = async (amount: string) => {
     if (!isConnected || !address || !yiDengTokenAddress || !contractAddress) {
       toast.error('钱包未连接或合约地址未获取')
-      console.error('授权失败 - 缺少必要信息:', {
-        isConnected,
-        address,
-        yiDengTokenAddress,
-        contractAddress
-      })
       return
     }
 
     try {
       setIsLoading(true)
       
-      console.log('🔐 授权参数:', {
+      // 关键修复：使用最大值授权，用户只需授权一次
+      const approvalAmount = BigInt(MAX_UINT256);
+      
+      console.log('🔐 使用无限授权策略:', {
         tokenAddress: yiDengTokenAddress,
         spender: contractAddress,
-        amount: parseUnits(amount, 18).toString(),
+        approvalAmount: "MAX_UINT256",
         userAddress: address
       })
       
@@ -1026,20 +449,24 @@ export function useTokenSwap() {
         address: yiDengTokenAddress,
         abi: ERC20_ABI,
         functionName: "approve",
-        args: [contractAddress as `0x${string}`, parseUnits(amount, 18)],
+        args: [contractAddress as `0x${string}`, approvalAmount],
       });
 
-      toast.success("授权交易已提交");
+      // 获取当前交易哈希，用于跟踪授权交易
+      if (hash) {
+        setLastApprovalHash(hash);
+      }
+      
+      toast.success("授权交易已提交，等待确认...");
+      
     } catch (err: any) {
       console.error("授权失败:", err);
-
       let errorMessage = "授权失败";
       if (err.message?.includes("User rejected")) {
         errorMessage = "用户取消了授权";
       } else if (err.message) {
         errorMessage = `授权失败: ${err.message}`;
       }
-
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -1053,7 +480,14 @@ export function useTokenSwap() {
       return;
     }
 
-    // 检查合约是否有足够的ETH
+    // 关键修复：在出售前再次检查授权状态
+    if (needsApproval(tokenAmount)) {
+      toast.error("请先授权一灯币后再进行兑换");
+      // 刷新授权状态，防止状态不同步
+      refetchAllowance();
+      return;
+    }
+
     const expectedETH = calculateETHForTokens(tokenAmount);
     const contractETH = contractETHBalance ? parseFloat(contractETHBalance) : 0;
     if (contractETH < parseFloat(expectedETH)) {
@@ -1073,6 +507,7 @@ export function useTokenSwap() {
         minETHAmount: minETHAmount.toString(),
         slippage,
         userTokenBalance: userTokenBalance?.toString(),
+        currentAllowance: allowance?.toString(),
         contractAddress,
         userAddress: address
       })
@@ -1088,8 +523,6 @@ export function useTokenSwap() {
       toast.success(`出售交易已提交到 ${networkName}`);
     } catch (err: any) {
       console.error("出售代币失败:", err);
-
-      // 更详细的错误处理
       let errorMessage = "出售失败";
       if (err.message?.includes("InsufficientETHBalance")) {
         errorMessage = "合约中ETH库存不足";
@@ -1099,31 +532,41 @@ export function useTokenSwap() {
         errorMessage = "滑点过大，请增加滑点容差或稍后重试";
       } else if (err.message?.includes("ERC20: insufficient allowance")) {
         errorMessage = "代币授权不足，请先授权";
+        setTimeout(() => refetchAllowance(), 1000);
       } else if (err.message?.includes("User rejected")) {
         errorMessage = "用户取消了交易";
       } else if (err.message) {
         errorMessage = `出售失败: ${err.message}`;
       }
-
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 检查是否需要授权
+  // 关键修复：改进的授权检查逻辑
   const needsApproval = (tokenAmount: string): boolean => {
-    if (!allowance || !tokenAmount) return true; // 如果无法获取授权额度，默认需要授权
+    if (!allowance || !tokenAmount || !yiDengTokenAddress || !contractAddress) {
+      console.log('🔐 授权检查 - 缺少信息，默认需要授权')
+      return true;
+    }
+    
     try {
       const amountInWei = parseUnits(tokenAmount, 18)
-      const needsAuth = BigInt(allowance.toString()) < amountInWei
-      console.log(`🔐 检查授权状态:`, {
+      const currentAllowance = BigInt(allowance.toString())
+      const needsAuth = currentAllowance < amountInWei
+      
+      console.log(`🔐 授权检查详情:`, {
         tokenAmount,
-        allowance: allowance.toString(),
-        needsAuthorization: needsAuth
+        amountInWei: amountInWei.toString(),
+        currentAllowance: currentAllowance.toString(),
+        needsAuthorization: needsAuth,
+        isInfiniteApproval: currentAllowance.toString() === MAX_UINT256
       })
+      
       return needsAuth
-    } catch {
+    } catch (error) {
+      console.error('授权检查出错:', error)
       return true;
     }
   };
@@ -1142,7 +585,6 @@ export function useTokenSwap() {
         })
         return hasBalance
       }
-      // ETH余额检查在组件中处理
       return true;
     } catch {
       return false;
@@ -1163,16 +605,23 @@ export function useTokenSwap() {
     if (!userTokenBalance) return '0'
     try {
       const formatted = formatUnits(userTokenBalance, 18)
-      console.log(`🪙 格式化一灯币余额:`, {
-        raw: userTokenBalance.toString(),
-        formatted
-      })
       return formatted
     } catch (error) {
       console.error('格式化余额失败:', error)
       return '0'
     }
   }
+
+  // 监听授权状态变化，提供调试信息
+  useEffect(() => {
+    if (allowance) {
+      console.log('🔐 授权状态更新:', {
+        allowance: allowance.toString(),
+        formatted: formatUnits(allowance, 18),
+        isInfiniteApproval: allowance.toString() === MAX_UINT256
+      })
+    }
+  }, [allowance])
   
   return {
     // 网络信息
@@ -1186,7 +635,7 @@ export function useTokenSwap() {
     exchangeRate: exchangeRate ? Number(exchangeRate) : 0,
     feeRates: feeRates
       ? {
-          buyFee: Number(feeRates[0]) / 100, // 转换为百分比
+          buyFee: Number(feeRates[0]) / 100,
           sellFee: Number(feeRates[1]) / 100,
         }
       : { buyFee: 1, sellFee: 1 },
@@ -1204,6 +653,7 @@ export function useTokenSwap() {
     
     // 调试信息
     rawUserTokenBalance: userTokenBalance,
+    rawAllowance: allowance,
     userBalanceError,
     isLoadingUserBalance,
     
