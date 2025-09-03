@@ -34,7 +34,6 @@ function DevTools({ isVisible, onToggle }: DevToolsProps) {
   
   // 生成区块浏览器链接
   const getExplorerUrl = (address: string, type: 'address' | 'tx' = 'address') => {
-    if (chainId === 31337) return `http://localhost:8545`
     if (chainId === 1337) return `http://localhost:7545`
     if (chainId === 11155111) return `https://sepolia.etherscan.io/${type}/${address}`
     if (chainId === 1) return `https://etherscan.io/${type}/${address}`

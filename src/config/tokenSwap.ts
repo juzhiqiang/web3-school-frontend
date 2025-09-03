@@ -3,89 +3,89 @@ export const TOKEN_SWAP_CONFIG = {
   // 不同网络的合约地址
   CONTRACT_ADDRESSES: {
     // 主网
-    1: '0x5b8721Cbe813d85706536c08a08e97f3Cc81BFa0',
+    1: "0x5b8721Cbe813d85706536c08a08e97f3Cc81BFa0",
     // Sepolia测试网
-    11155111: '0x5b8721Cbe813d85706536c08a08e97f3Cc81BFa0',
-    // Hardhat本地网络
-    31337: process.env.VITE_LOCAL_CONTRACT_ADDRESS || '0x5b8721Cbe813d85706536c08a08e97f3Cc81BFa0',
+    11155111: "0x5b8721Cbe813d85706536c08a08e97f3Cc81BFa0",
     // Ganache本地网络
-    1337: process.env.VITE_LOCAL_CONTRACT_ADDRESS || '0x5b8721Cbe813d85706536c08a08e97f3Cc81BFa0',
+    1337: "0x3AEc18B0101d56a75f788a6C1F24eF4D5661888d",
   } as const,
-  
+
   // 代币配置
   TOKEN_DECIMALS: 18,
-  TOKEN_SYMBOL: 'YD',
-  TOKEN_NAME: '一灯币',
-  
+  TOKEN_SYMBOL: "YD",
+  TOKEN_NAME: "一灯币",
+
   // 默认滑点设置
   DEFAULT_SLIPPAGE: 1, // 1%
-  MAX_SLIPPAGE: 5,     // 5%
-  MIN_SLIPPAGE: 0.1,   // 0.1%
-  
+  MAX_SLIPPAGE: 5, // 5%
+  MIN_SLIPPAGE: 0.1, // 0.1%
+
   // 手续费相关
   BASIS_POINTS: 10000,
-  
+
   // 支持的网络
   SUPPORTED_CHAINS: [1, 11155111, 31337, 1337], // mainnet, sepolia, hardhat, ganache
-  
+
   // 本地网络配置
   LOCAL_NETWORKS: {
-    HARDHAT: {
-      chainId: 31337,
-      name: 'Hardhat Network',
-      rpcUrl: 'http://127.0.0.1:8545',
-      blockExplorer: 'http://localhost:8545',
-    },
     GANACHE: {
       chainId: 1337,
-      name: 'Ganache',
-      rpcUrl: 'http://127.0.0.1:7545',
-      blockExplorer: 'http://localhost:7545',
+      name: "Ganache",
+      rpcUrl: "http://127.0.0.1:7545",
+      blockExplorer: "http://localhost:7545",
     },
   },
-} as const
+} as const;
 
 // 合约事件主题
 export const CONTRACT_EVENTS = {
-  TOKENS_PURCHASED: 'TokensPurchased',
-  TOKENS_SOLD: 'TokensSold',
-  RATE_UPDATED: 'RateUpdated',
-  FEE_RATE_UPDATED: 'FeeRateUpdated',
-} as const
+  TOKENS_PURCHASED: "TokensPurchased",
+  TOKENS_SOLD: "TokensSold",
+  RATE_UPDATED: "RateUpdated",
+  FEE_RATE_UPDATED: "FeeRateUpdated",
+} as const;
 
 // 错误消息映射
 export const ERROR_MESSAGES = {
-  INSUFFICIENT_BALANCE: '余额不足',
-  INVALID_AMOUNT: '请输入有效金额',
-  TRANSACTION_FAILED: '交易失败',
-  APPROVAL_REQUIRED: '需要先授权代币',
-  WALLET_NOT_CONNECTED: '请先连接钱包',
-  NETWORK_NOT_SUPPORTED: '不支持的网络',
-  EXCESSIVE_SLIPPAGE: '滑点过大',
-  CONTRACT_NOT_DEPLOYED: '合约未部署在当前网络',
-} as const
+  INSUFFICIENT_BALANCE: "余额不足",
+  INVALID_AMOUNT: "请输入有效金额",
+  TRANSACTION_FAILED: "交易失败",
+  APPROVAL_REQUIRED: "需要先授权代币",
+  WALLET_NOT_CONNECTED: "请先连接钱包",
+  NETWORK_NOT_SUPPORTED: "不支持的网络",
+  EXCESSIVE_SLIPPAGE: "滑点过大",
+  CONTRACT_NOT_DEPLOYED: "合约未部署在当前网络",
+} as const;
 
 // 获取当前网络的合约地址
 export const getContractAddress = (chainId: number): string => {
-  const address = TOKEN_SWAP_CONFIG.CONTRACT_ADDRESSES[chainId as keyof typeof TOKEN_SWAP_CONFIG.CONTRACT_ADDRESSES]
+  const address =
+    TOKEN_SWAP_CONFIG.CONTRACT_ADDRESSES[
+      chainId as keyof typeof TOKEN_SWAP_CONFIG.CONTRACT_ADDRESSES
+    ];
   if (!address) {
-    throw new Error(`不支持的网络: ${chainId}`)
+    throw new Error(`不支持的网络: ${chainId}`);
   }
-  return address
-}
+  return address;
+};
 
 // 检查是否为本地网络
 export const isLocalNetwork = (chainId: number): boolean => {
-  return chainId === 31337 || chainId === 1337
-}
+  return chainId === 31337 || chainId === 1337;
+};
 
 // 获取网络显示名称
 export const getNetworkName = (chainId: number): string => {
   switch (chainId) {
-    case 1: return 'Ethereum 主网'
-    case 11155111: return 'Sepolia 测试网'
-    case 31337: return 'Hardhat 本地网络'
-    case 1337: return 'Ganache 本地网络'
-    default: return `网络 ${chainId}`
+    case 1:
+      return "Ethereum 主网";
+    case 11155111:
+      return "Sepolia 测试网";
+    case 31337:
+      return "Hardhat 本地网络";
+    case 1337:
+      return "Ganache 本地网络";
+    default:
+      return `网络 ${chainId}`;
   }
-}
+};

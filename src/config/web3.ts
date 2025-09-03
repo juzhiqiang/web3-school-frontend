@@ -2,30 +2,6 @@ import { getDefaultConfig } from '@rainbow-me/rainbowkit'
 import { mainnet, polygon, optimism, arbitrum, base, sepolia } from 'wagmi/chains'
 import { defineChain } from 'viem'
 
-// 定义本地测试网络 (Hardhat/Ganache)
-export const localhost = defineChain({
-  id: 31337,
-  name: 'Localhost',
-  network: 'localhost',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'Ether',
-    symbol: 'ETH',
-  },
-  rpcUrls: {
-    default: {
-      http: ['http://127.0.0.1:8545'],
-    },
-    public: {
-      http: ['http://127.0.0.1:8545'],
-    },
-  },
-  blockExplorers: {
-    default: { name: 'Local Explorer', url: 'http://localhost:8545' },
-  },
-  testnet: true,
-})
-
 // 定义Ganache网络 (端口7545)
 export const ganache = defineChain({
   id: 1337,
@@ -58,7 +34,7 @@ const getChains = () => {
   const baseChains = [mainnet, sepolia, polygon, optimism, arbitrum, base]
   
   if (isDevelopment && enableLocalhost) {
-    return [localhost, ganache, ...baseChains]
+    return [ ganache, ...baseChains]
   }
   
   return baseChains
@@ -73,12 +49,6 @@ export const config = getDefaultConfig({
 
 // 网络配置映射
 export const NETWORK_CONFIG = {
-  [localhost.id]: {
-    name: 'Localhost',
-    rpcUrl: 'http://127.0.0.1:8545',
-    explorerUrl: 'http://localhost:8545',
-    isLocal: true,
-  },
   [ganache.id]: {
     name: 'Ganache',
     rpcUrl: 'http://127.0.0.1:7545',
