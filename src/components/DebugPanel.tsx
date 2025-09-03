@@ -1,14 +1,68 @@
 import React, { useState } from 'react'
-import { Bug, Copy, RefreshCw } from 'lucide-react'
+import { Bug, Copy, RefreshCw, TestTube } from 'lucide-react'
 import { useWeb3 } from '../contexts/Web3Context'
 import { useTokenSwap } from '../hooks/useTokenSwap'
+import { useReadContract, useChainId } from 'wagmi'
+import { formatUnits } from 'viem'
 import { debugContractInfo } from '../config/tokenSwap'
+
+// 直接测试一灯币余额的组件
+function DirectBalanceTest({ tokenAddress, userAddress }: { tokenAddress: string, userAddress: string }) {
+  // 直接调用一灯币合约的balanceOf
+  const { data: directBalance, error: directError, refetch: refetchDirect } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: [
+      {
+        "inputs": [{"internalType": "address", "name": "owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ],
+    functionName: 'balanceOf',
+    args: [userAddress as `0x${string}`],
+  })
+
+  return (
+    <div className="bg-green-50 rounded p-2 mt-2">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-xs font-medium text-green-700">直接余额测试</span>
+        <button
+          onClick={() => refetchDirect()}
+          className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+        >
+          刷新
+        </button>
+      </div>
+      <div className="text-xs space-y-1">
+        <div className="break-all">
+          <span className="text-gray-600">合约:</span> {tokenAddress}
+        </div>
+        <div className="break-all">
+          <span className="text-gray-600">用户:</span> {userAddress}
+        </div>
+        <div>
+          <span className="text-gray-600">原始余额:</span> {directBalance?.toString() || '无'}
+        </div>
+        <div>
+          <span className="text-gray-600">格式化余额:</span> {directBalance ? formatUnits(directBalance, 18) : '0'}
+        </div>
+        {directError && (
+          <div className="text-red-600 break-words">
+            错误: {directError.message}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // 开发环境调试工具组件
 function DebugPanel() {
   const { isConnected, address, balance } = useWeb3()
+  const chainId = useChainId()
   const {
-    chainId,
     contractAddress,
     networkName,
     isLocalNetwork,
@@ -27,6 +81,7 @@ function DebugPanel() {
   } = useTokenSwap()
   
   const [isExpanded, setIsExpanded] = useState(false)
+  const [manualTokenAddress, setManualTokenAddress] = useState('')
   
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -137,33 +192,6 @@ function DebugPanel() {
     console.log('✅ 诊断完成，请查看上述信息')
   }
   
-  // 测试直接调用一灯币余额
-  const testTokenBalance = async () => {
-    if (!yiDengTokenAddress || !address) {
-      console.error('❌ 缺少必要参数进行余额测试')
-      return
-    }
-    
-    console.group('🧪 测试一灯币余额获取')
-    console.log('准备调用 balanceOf:', {
-      tokenContract: yiDengTokenAddress,
-      userAddress: address
-    })
-    
-    try {
-      // 这里可以添加直接的合约调用测试
-      console.log('当前余额数据状态:', {
-        raw: rawUserTokenBalance?.toString(),
-        formatted: userTokenBalance,
-        loading: isLoadingUserBalance,
-        error: userBalanceError
-      })
-    } catch (error) {
-      console.error('测试失败:', error)
-    }
-    console.groupEnd()
-  }
-  
   // 仅在开发环境显示
   if (import.meta.env.PROD) return null
   
@@ -202,17 +230,9 @@ function DebugPanel() {
               </button>
             </div>
             
-            {/* 一灯币余额专项测试 */}
+            {/* 一灯币余额专项检查 */}
             <div className="bg-yellow-50 rounded p-2">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-medium text-yellow-700">一灯币余额检查</span>
-                <button
-                  onClick={testTokenBalance}
-                  className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-                >
-                  测试
-                </button>
-              </div>
+              <div className="text-xs font-medium text-yellow-700 mb-2">🪙 一灯币余额检查</div>
               <div className="text-xs space-y-1">
                 <div className="flex justify-between">
                   <span>显示余额:</span>
@@ -224,12 +244,44 @@ function DebugPanel() {
                 </div>
                 <div className="flex justify-between">
                   <span>加载状态:</span>
-                  <span>{isLoadingUserBalance ? '加载中...' : '已完成'}</span>
+                  <span>{isLoadingUserBalance ? '🔄 加载中...' : '✅ 已完成'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>合约地址:</span>
+                  <span className="font-mono text-xs break-all">{yiDengTokenAddress || '未获取'}</span>
                 </div>
                 {userBalanceError && (
                   <div className="text-red-600 text-xs break-words">
-                    错误: {userBalanceError.message}
+                    ❌ 错误: {userBalanceError.message}
                   </div>
+                )}
+              </div>
+              
+              {/* 直接余额测试 */}
+              {yiDengTokenAddress && address && (
+                <DirectBalanceTest 
+                  tokenAddress={yiDengTokenAddress} 
+                  userAddress={address} 
+                />
+              )}
+            </div>
+
+            {/* 手动测试区域 */}
+            <div className="bg-blue-50 rounded p-2">
+              <div className="text-xs font-medium text-blue-700 mb-2">🧪 手动测试</div>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="输入一灯币合约地址进行测试"
+                  value={manualTokenAddress}
+                  onChange={(e) => setManualTokenAddress(e.target.value)}
+                  className="w-full text-xs p-1 border rounded"
+                />
+                {manualTokenAddress && address && (
+                  <DirectBalanceTest 
+                    tokenAddress={manualTokenAddress} 
+                    userAddress={address} 
+                  />
                 )}
               </div>
             </div>
@@ -275,6 +327,9 @@ function DebugPanel() {
                 {parseFloat(contractETHBalance) === 0 && <div className="text-yellow-600">⚠️ 合约ETH库存为0</div>}
                 {userBalanceError && <div className="text-red-600">❌ 一灯币余额获取失败</div>}
                 {isLoadingUserBalance && <div className="text-blue-600">🔄 正在加载一灯币余额</div>}
+                {yiDengTokenAddress && !userBalanceError && rawUserTokenBalance === undefined && (
+                  <div className="text-red-600">❌ 有合约地址但余额为undefined</div>
+                )}
                 {isConnected && isContractAvailable && yiDengTokenAddress && !userBalanceError && !isLoadingUserBalance && (
                   <div className="text-green-600">✅ 基本检查通过</div>
                 )}
@@ -282,8 +337,60 @@ function DebugPanel() {
             </div>
             
             <div className="text-xs text-gray-500 pt-2 border-t">
-              💡 运行诊断查看详细日志，重点关注一灯币余额获取
+              💡 直接余额测试会绕过hook逻辑，直接调用合约
             </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// 直接测试一灯币余额的组件
+function DirectBalanceTest({ tokenAddress, userAddress }: { tokenAddress: string, userAddress: string }) {
+  // 直接调用一灯币合约的balanceOf
+  const { data: directBalance, error: directError, refetch: refetchDirect } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: [
+      {
+        "inputs": [{"internalType": "address", "name": "owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ],
+    functionName: 'balanceOf',
+    args: [userAddress as `0x${string}`],
+  })
+
+  return (
+    <div className="bg-green-50 rounded p-2 mt-2">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-xs font-medium text-green-700">直接余额测试</span>
+        <button
+          onClick={() => refetchDirect()}
+          className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+        >
+          刷新
+        </button>
+      </div>
+      <div className="text-xs space-y-1">
+        <div className="break-all">
+          <span className="text-gray-600">合约:</span> {tokenAddress}
+        </div>
+        <div className="break-all">
+          <span className="text-gray-600">用户:</span> {userAddress}
+        </div>
+        <div>
+          <span className="text-gray-600">原始余额:</span> {directBalance?.toString() || '无'}
+        </div>
+        <div>
+          <span className="text-gray-600">格式化余额:</span> {directBalance ? formatUnits(directBalance, 18) : '0'}
+        </div>
+        {directError && (
+          <div className="text-red-600 break-words">
+            错误: {directError.message}
           </div>
         )}
       </div>
