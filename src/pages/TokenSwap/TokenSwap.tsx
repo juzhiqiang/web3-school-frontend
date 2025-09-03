@@ -115,11 +115,6 @@ function TokenSwap() {
     if (swapMode === 'buy') {
       await buyTokens(inputAmount, slippage)
     } else {
-      // 检查是否需要授权
-      if (needsApproval(inputAmount)) {
-        toast.error('请先授权一灯币，然后再进行出售')
-        return
-      }
       await sellTokens(inputAmount, slippage)
     }
   }
@@ -140,7 +135,7 @@ function TokenSwap() {
     await approveTokens(inputAmount)
   }
   
-  // 获取按钮文本和状态
+  // 修复：获取按钮文本和状态的逻辑
   const getButtonConfig = () => {
     if (!isContractAvailable) {
       return { 
@@ -163,12 +158,22 @@ function TokenSwap() {
       return { text: '余额不足', disabled: true, className: 'bg-red-400' }
     }
     
-    if (swapMode === 'sell' && needsApproval(inputAmount)) {
-      return { 
-        text: '授权一灯币', 
-        disabled: false, 
-        className: 'bg-yellow-600 hover:bg-yellow-700',
-        action: handleApprove
+    // 修复：只有在出售模式下才检查授权，且只有真正需要授权时才显示授权按钮
+    if (swapMode === 'sell') {
+      const needsAuth = needsApproval(inputAmount)
+      console.log('🔐 授权检查:', {
+        mode: 'sell',
+        inputAmount,
+        needsApproval: needsAuth
+      })
+      
+      if (needsAuth) {
+        return { 
+          text: '授权一灯币', 
+          disabled: false, 
+          className: 'bg-yellow-600 hover:bg-yellow-700',
+          action: handleApprove
+        }
       }
     }
     
@@ -444,6 +449,23 @@ function TokenSwap() {
             </div>
           </div>
           
+          {/* 授权状态提示（仅出售模式显示） */}
+          {swapMode === 'sell' && inputAmount && parseFloat(inputAmount) > 0 && isContractAvailable && (
+            <div className="mt-4 bg-gray-50 rounded-lg p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">授权状态:</span>
+                <span className={`font-medium ${needsApproval(inputAmount) ? 'text-yellow-600' : 'text-green-600'}`}>
+                  {needsApproval(inputAmount) ? '需要授权' : '已授权'}
+                </span>
+              </div>
+              {needsApproval(inputAmount) && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  出售一灯币前需要先授权合约使用您的代币
+                </p>
+              )}
+            </div>
+          )}
+          
           {/* 交易详情 */}
           {inputAmount && parseFloat(inputAmount) > 0 && isContractAvailable && (
             <div className="mt-4 bg-blue-50 rounded-lg p-4">
@@ -506,7 +528,7 @@ function TokenSwap() {
           {/* 兑换按钮 */}
           <div className="mt-6">
             <button
-              onClick={buttonConfig.action || handleSwap}
+              onClick={buttonConfig.action}
               disabled={buttonConfig.disabled}
               className={`w-full py-3 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${buttonConfig.className} text-white`}
             >
