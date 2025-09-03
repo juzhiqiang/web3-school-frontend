@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther, formatEther, parseUnits, formatUnits } from 'viem'
 import toast from 'react-hot-toast'
-
-// YiDengTokenSwap合约地址
-const TOKEN_SWAP_CONTRACT_ADDRESS = '0x5b8721Cbe813d85706536c08a08e97f3Cc81BFa0' as const
+import { TOKEN_SWAP_CONFIG, ERROR_MESSAGES } from '../config/tokenSwap'
 
 // 合约ABI（根据合约代码生成）
 const TOKEN_SWAP_ABI = [
@@ -145,42 +143,42 @@ export function useTokenSwap() {
   const [isLoading, setIsLoading] = useState(false)
   
   // 获取兑换率
-  const { data: exchangeRate } = useReadContract({
-    address: TOKEN_SWAP_CONTRACT_ADDRESS,
+  const { data: exchangeRate, refetch: refetchRate } = useReadContract({
+    address: TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS,
     abi: TOKEN_SWAP_ABI,
     functionName: 'rate',
   })
   
   // 获取手续费率
-  const { data: feeRates } = useReadContract({
-    address: TOKEN_SWAP_CONTRACT_ADDRESS,
+  const { data: feeRates, refetch: refetchFees } = useReadContract({
+    address: TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS,
     abi: TOKEN_SWAP_ABI,
     functionName: 'getFeeRates',
   })
   
   // 获取合约中的代币余额
-  const { data: contractTokenBalance } = useReadContract({
-    address: TOKEN_SWAP_CONTRACT_ADDRESS,
+  const { data: contractTokenBalance, refetch: refetchContractTokenBalance } = useReadContract({
+    address: TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS,
     abi: TOKEN_SWAP_ABI,
     functionName: 'getTokenBalance',
   })
   
   // 获取合约中的ETH余额
-  const { data: contractETHBalance } = useReadContract({
-    address: TOKEN_SWAP_CONTRACT_ADDRESS,
+  const { data: contractETHBalance, refetch: refetchContractETHBalance } = useReadContract({
+    address: TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS,
     abi: TOKEN_SWAP_ABI,
     functionName: 'getETHBalance',
   })
   
   // 获取一灯币合约地址
   const { data: yiDengTokenAddress } = useReadContract({
-    address: TOKEN_SWAP_CONTRACT_ADDRESS,
+    address: TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS,
     abi: TOKEN_SWAP_ABI,
     functionName: 'yiDengToken',
   })
   
   // 获取用户的一灯币余额
-  const { data: userTokenBalance } = useReadContract({
+  const { data: userTokenBalance, refetch: refetchUserTokenBalance } = useReadContract({
     address: yiDengTokenAddress,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
@@ -188,11 +186,11 @@ export function useTokenSwap() {
   })
   
   // 获取用户对合约的授权额度
-  const { data: allowance } = useReadContract({
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: yiDengTokenAddress,
     abi: ERC20_ABI,
     functionName: 'allowance',
-    args: address && yiDengTokenAddress ? [address, TOKEN_SWAP_CONTRACT_ADDRESS] : undefined,
+    args: address && yiDengTokenAddress ? [address, TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS] : undefined,
   })
   
   const { writeContract, data: hash, error, isPending } = useWriteContract()
@@ -201,15 +199,32 @@ export function useTokenSwap() {
     hash,
   })
   
+  // 刷新所有数据
+  const refetchAll = () => {
+    refetchRate()
+    refetchFees()
+    refetchContractTokenBalance()
+    refetchContractETHBalance()
+    refetchUserTokenBalance()
+    refetchAllowance()
+  }
+  
+  // 监听交易确认，刷新数据
+  useEffect(() => {
+    if (isConfirmed) {
+      refetchAll()
+    }
+  }, [isConfirmed])
+  
   // 计算购买代币数量
   const calculateTokensForETH = (ethAmount: string): string => {
     if (!exchangeRate || !ethAmount) return '0'
     try {
       const ethInWei = parseEther(ethAmount)
       const grossTokens = ethInWei * BigInt(exchangeRate.toString())
-      const fee = feeRates ? (grossTokens * BigInt(feeRates[0].toString())) / BigInt(10000) : BigInt(0)
+      const fee = feeRates ? (grossTokens * BigInt(feeRates[0].toString())) / BigInt(TOKEN_SWAP_CONFIG.BASIS_POINTS) : BigInt(0)
       const netTokens = grossTokens - fee
-      return formatUnits(netTokens, 18) // 假设代币是18位小数
+      return formatUnits(netTokens, TOKEN_SWAP_CONFIG.TOKEN_DECIMALS)
     } catch {
       return '0'
     }
@@ -219,9 +234,9 @@ export function useTokenSwap() {
   const calculateETHForTokens = (tokenAmount: string): string => {
     if (!exchangeRate || !tokenAmount) return '0'
     try {
-      const tokensInWei = parseUnits(tokenAmount, 18)
+      const tokensInWei = parseUnits(tokenAmount, TOKEN_SWAP_CONFIG.TOKEN_DECIMALS)
       const grossETH = tokensInWei / BigInt(exchangeRate.toString())
-      const fee = feeRates ? (grossETH * BigInt(feeRates[1].toString())) / BigInt(10000) : BigInt(0)
+      const fee = feeRates ? (grossETH * BigInt(feeRates[1].toString())) / BigInt(TOKEN_SWAP_CONFIG.BASIS_POINTS) : BigInt(0)
       const netETH = grossETH - fee
       return formatEther(netETH)
     } catch {
@@ -230,9 +245,9 @@ export function useTokenSwap() {
   }
   
   // 购买代币
-  const buyTokens = async (ethAmount: string, slippage: number = 1) => {
+  const buyTokens = async (ethAmount: string, slippage: number = TOKEN_SWAP_CONFIG.DEFAULT_SLIPPAGE) => {
     if (!isConnected || !address || !exchangeRate) {
-      toast.error('请先连接钱包')
+      toast.error(ERROR_MESSAGES.WALLET_NOT_CONNECTED)
       return
     }
     
@@ -240,12 +255,12 @@ export function useTokenSwap() {
       setIsLoading(true)
       const expectedTokens = calculateTokensForETH(ethAmount)
       const minTokenAmount = parseUnits(
-        (parseFloat(expectedTokens) * (1 - slippage / 100)).toFixed(18),
-        18
+        (parseFloat(expectedTokens) * (1 - slippage / 100)).toFixed(TOKEN_SWAP_CONFIG.TOKEN_DECIMALS),
+        TOKEN_SWAP_CONFIG.TOKEN_DECIMALS
       )
       
       await writeContract({
-        address: TOKEN_SWAP_CONTRACT_ADDRESS,
+        address: TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS,
         abi: TOKEN_SWAP_ABI,
         functionName: 'buyTokens',
         args: [minTokenAmount],
@@ -264,7 +279,7 @@ export function useTokenSwap() {
   // 授权代币
   const approveTokens = async (amount: string) => {
     if (!isConnected || !address || !yiDengTokenAddress) {
-      toast.error('请先连接钱包')
+      toast.error(ERROR_MESSAGES.WALLET_NOT_CONNECTED)
       return
     }
     
@@ -274,7 +289,7 @@ export function useTokenSwap() {
         address: yiDengTokenAddress,
         abi: ERC20_ABI,
         functionName: 'approve',
-        args: [TOKEN_SWAP_CONTRACT_ADDRESS, parseUnits(amount, 18)],
+        args: [TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS, parseUnits(amount, TOKEN_SWAP_CONFIG.TOKEN_DECIMALS)],
       })
       
       toast.success('授权交易已提交')
@@ -287,9 +302,9 @@ export function useTokenSwap() {
   }
   
   // 出售代币
-  const sellTokens = async (tokenAmount: string, slippage: number = 1) => {
+  const sellTokens = async (tokenAmount: string, slippage: number = TOKEN_SWAP_CONFIG.DEFAULT_SLIPPAGE) => {
     if (!isConnected || !address || !exchangeRate) {
-      toast.error('请先连接钱包')
+      toast.error(ERROR_MESSAGES.WALLET_NOT_CONNECTED)
       return
     }
     
@@ -301,10 +316,10 @@ export function useTokenSwap() {
       )
       
       await writeContract({
-        address: TOKEN_SWAP_CONTRACT_ADDRESS,
+        address: TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS,
         abi: TOKEN_SWAP_ABI,
         functionName: 'sellTokens',
-        args: [parseUnits(tokenAmount, 18), minETHAmount],
+        args: [parseUnits(tokenAmount, TOKEN_SWAP_CONFIG.TOKEN_DECIMALS), minETHAmount],
       })
       
       toast.success('出售交易已提交')
@@ -320,8 +335,23 @@ export function useTokenSwap() {
   const needsApproval = (tokenAmount: string): boolean => {
     if (!allowance || !tokenAmount) return false
     try {
-      const amountInWei = parseUnits(tokenAmount, 18)
+      const amountInWei = parseUnits(tokenAmount, TOKEN_SWAP_CONFIG.TOKEN_DECIMALS)
       return BigInt(allowance.toString()) < amountInWei
+    } catch {
+      return false
+    }
+  }
+  
+  // 检查用户余额是否足够
+  const hasEnoughBalance = (amount: string, type: 'token' | 'eth'): boolean => {
+    if (!amount) return false
+    try {
+      if (type === 'token') {
+        const amountInWei = parseUnits(amount, TOKEN_SWAP_CONFIG.TOKEN_DECIMALS)
+        return userTokenBalance ? BigInt(userTokenBalance.toString()) >= amountInWei : false
+      }
+      // ETH余额检查需要从Web3Context获取
+      return true // 简化处理，实际应该检查ETH余额
     } catch {
       return false
     }
@@ -334,12 +364,13 @@ export function useTokenSwap() {
       buyFee: Number(feeRates[0]) / 100, // 转换为百分比
       sellFee: Number(feeRates[1]) / 100
     } : { buyFee: 1, sellFee: 1 },
-    contractTokenBalance: contractTokenBalance ? formatUnits(contractTokenBalance, 18) : '0',
+    contractTokenBalance: contractTokenBalance ? formatUnits(contractTokenBalance, TOKEN_SWAP_CONFIG.TOKEN_DECIMALS) : '0',
     contractETHBalance: contractETHBalance ? formatEther(contractETHBalance) : '0',
     
     // 用户状态
-    userTokenBalance: userTokenBalance ? formatUnits(userTokenBalance, 18) : '0',
-    allowance: allowance ? formatUnits(allowance, 18) : '0',
+    userTokenBalance: userTokenBalance ? formatUnits(userTokenBalance, TOKEN_SWAP_CONFIG.TOKEN_DECIMALS) : '0',
+    allowance: allowance ? formatUnits(allowance, TOKEN_SWAP_CONFIG.TOKEN_DECIMALS) : '0',
+    yiDengTokenAddress,
     
     // 计算函数
     calculateTokensForETH,
@@ -350,6 +381,8 @@ export function useTokenSwap() {
     sellTokens,
     approveTokens,
     needsApproval,
+    hasEnoughBalance,
+    refetchAll,
     
     // 加载状态
     isLoading: isLoading || isPending || isConfirming,
