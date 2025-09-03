@@ -2,7 +2,7 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useWeb3 } from '../../contexts/Web3Context'
-import { BookOpen, User, PlusCircle, TrendingUp } from 'lucide-react'
+import { BookOpen, User, PlusCircle, TrendingUp, ArrowRightLeft } from 'lucide-react'
 
 const Header: React.FC = () => {
   const location = useLocation()
@@ -11,6 +11,7 @@ const Header: React.FC = () => {
   const navItems = [
     { path: '/', label: '课程市场', icon: BookOpen },
     { path: '/create-course', label: '创建课程', icon: PlusCircle, requiresConnection: true },
+    { path: '/token-swap', label: '代币兑换', icon: ArrowRightLeft, requiresConnection: true },
     { path: '/financial', label: '财务中心', icon: TrendingUp, requiresConnection: true },
     { path: '/profile', label: '个人中心', icon: User, requiresConnection: true },
   ]
