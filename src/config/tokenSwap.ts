@@ -7,7 +7,7 @@ export const TOKEN_SWAP_CONFIG = {
     // Sepolia测试网
     11155111: "0x5b8721Cbe813d85706536c08a08e97f3Cc81BFa0",
     // Ganache本地网络
-    1337: "0x3AEc18B0101d56a75f788a6C1F24eF4D5661888d",
+    1337: process.env.VITE_LOCAL_CONTRACT_ADDRESS || "0x3AEc18B0101d56a75f788a6C1F24eF4D5661888d",
   } as const,
 
   // 代币配置
@@ -23,8 +23,8 @@ export const TOKEN_SWAP_CONFIG = {
   // 手续费相关
   BASIS_POINTS: 10000,
 
-  // 支持的网络
-  SUPPORTED_CHAINS: [1, 11155111, 31337, 1337], // mainnet, sepolia, hardhat, ganache
+  // 支持的网络（移除Hardhat）
+  SUPPORTED_CHAINS: [1, 11155111, 1337], // mainnet, sepolia, ganache
 
   // 本地网络配置
   LOCAL_NETWORKS: {
@@ -55,23 +55,41 @@ export const ERROR_MESSAGES = {
   NETWORK_NOT_SUPPORTED: "不支持的网络",
   EXCESSIVE_SLIPPAGE: "滑点过大",
   CONTRACT_NOT_DEPLOYED: "合约未部署在当前网络",
+  INSUFFICIENT_CONTRACT_TOKENS: "合约中代币库存不足",
+  INSUFFICIENT_CONTRACT_ETH: "合约中ETH库存不足",
 } as const;
 
 // 获取当前网络的合约地址
 export const getContractAddress = (chainId: number): string => {
+  console.log(`获取网络 ${chainId} 的合约地址...`);
+  
+  // 处理Ganache本地网络的特殊情况
+  if (chainId === 1337) {
+    const localAddress = import.meta.env.VITE_LOCAL_CONTRACT_ADDRESS;
+    if (localAddress) {
+      console.log(`使用本地合约地址: ${localAddress}`);
+      return localAddress;
+    }
+    console.log('使用默认Ganache合约地址');
+  }
+  
   const address =
     TOKEN_SWAP_CONFIG.CONTRACT_ADDRESSES[
       chainId as keyof typeof TOKEN_SWAP_CONFIG.CONTRACT_ADDRESSES
     ];
+  
   if (!address) {
+    console.error(`不支持的网络: ${chainId}`);
     throw new Error(`不支持的网络: ${chainId}`);
   }
+  
+  console.log(`网络 ${chainId} 合约地址: ${address}`);
   return address;
 };
 
 // 检查是否为本地网络
 export const isLocalNetwork = (chainId: number): boolean => {
-  return chainId === 31337 || chainId === 1337;
+  return chainId === 1337; // 仅Ganache本地网络
 };
 
 // 获取网络显示名称
@@ -81,11 +99,32 @@ export const getNetworkName = (chainId: number): string => {
       return "Ethereum 主网";
     case 11155111:
       return "Sepolia 测试网";
-    case 31337:
-      return "Hardhat 本地网络";
     case 1337:
       return "Ganache 本地网络";
     default:
       return `网络 ${chainId}`;
   }
+};
+
+// 调试工具函数
+export const debugContractInfo = (chainId: number) => {
+  console.group(`🔍 合约调试信息 - 网络 ${chainId}`);
+  console.log('网络名称:', getNetworkName(chainId));
+  console.log('是否本地网络:', isLocalNetwork(chainId));
+  
+  try {
+    const contractAddress = getContractAddress(chainId);
+    console.log('合约地址:', contractAddress);
+    console.log('✅ 合约配置正常');
+  } catch (error) {
+    console.error('❌ 合约配置错误:', error);
+  }
+  
+  // 显示环境变量（仅本地网络）
+  if (isLocalNetwork(chainId)) {
+    console.log('本地合约地址环境变量:', import.meta.env.VITE_LOCAL_CONTRACT_ADDRESS);
+    console.log('启用本地网络:', import.meta.env.VITE_ENABLE_LOCALHOST);
+  }
+  
+  console.groupEnd();
 };
