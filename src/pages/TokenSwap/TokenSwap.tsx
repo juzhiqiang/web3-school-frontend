@@ -3,6 +3,7 @@ import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wi
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
 import { TOKEN_SWAP_CONFIG, ERROR_MESSAGES } from '../../config/tokenSwap'
+import DebugPanel from '../../components/DebugPanel'
 import toast from 'react-hot-toast'
 
 function TokenSwap() {
@@ -101,12 +102,22 @@ function TokenSwap() {
       return
     }
     
+    console.log('🚀 开始兑换操作:', {
+      mode: swapMode,
+      inputAmount,
+      slippage,
+      userETHBalance: balance,
+      userTokenBalance,
+      contractETHBalance,
+      contractTokenBalance
+    })
+    
     if (swapMode === 'buy') {
       await buyTokens(inputAmount, slippage)
     } else {
       // 检查是否需要授权
       if (needsApproval(inputAmount)) {
-        toast.error(ERROR_MESSAGES.APPROVAL_REQUIRED)
+        toast.error('请先授权一灯币，然后再进行出售')
         return
       }
       await sellTokens(inputAmount, slippage)
@@ -119,6 +130,13 @@ function TokenSwap() {
       toast.error(ERROR_MESSAGES.INVALID_AMOUNT)
       return
     }
+    
+    console.log('🔐 开始授权操作:', {
+      tokenAmount: inputAmount,
+      contractAddress,
+      userTokenBalance
+    })
+    
     await approveTokens(inputAmount)
   }
   
@@ -174,6 +192,8 @@ function TokenSwap() {
           <h2 className="text-2xl font-bold mb-4">一灯币兑换</h2>
           <p className="text-gray-600">请先连接您的钱包以开始兑换一灯币。</p>
         </div>
+        {/* 开发环境调试面板 */}
+        <DebugPanel />
       </div>
     )
   }
@@ -307,7 +327,7 @@ function TokenSwap() {
                 <h4 className="text-sm font-medium text-red-800 mb-1">合约不可用</h4>
                 <p className="text-sm text-red-700">
                   一灯币兑换合约尚未部署到当前网络 ({networkName})。
-                  {isLocalNetwork && '请确保在本地网络中部署了合约，或设置正确的合约地址。'}
+                  {isLocalNetwork && '请确保在Ganache网络中部署了合约，并设置正确的合约地址。'}
                 </p>
                 {isLocalNetwork && (
                   <div className="mt-2 text-xs text-red-600">
@@ -562,13 +582,16 @@ function TokenSwap() {
                 <li>• 交易一旦提交无法撤销，请仔细确认金额</li>
                 <li>• 请确保合约中有足够的资金进行兑换</li>
                 {isLocalNetwork && (
-                  <li>• 当前使用本地测试网络，交易仅用于测试目的</li>
+                  <li>• 当前使用Ganache本地测试网络，交易仅用于测试目的</li>
                 )}
               </ul>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* 开发环境调试面板 */}
+      <DebugPanel />
     </div>
   )
 }
