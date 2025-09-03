@@ -7,7 +7,7 @@ import DebugPanel from '../../components/DebugPanel'
 import toast from 'react-hot-toast'
 
 function TokenSwap() {
-  const { isConnected, address, balance } = useWeb3()
+  const { isConnected, address, balance, refetchBalance } = useWeb3()
   const {
     chainId,
     contractAddress,
@@ -31,7 +31,9 @@ function TokenSwap() {
     transactionHash,
     refetchAll,
     allowance,
-  } = useTokenSwap()
+    mintAndDepositTestTokens,
+    depositETHToContract,
+  } = useTokenSwap(refetchBalance)
   
   const [swapMode, setSwapMode] = useState<'buy' | 'sell'>('buy')
   const [inputAmount, setInputAmount] = useState('')
@@ -51,8 +53,13 @@ function TokenSwap() {
   // 监听交易确认
   useEffect(() => {
     if (isConfirmed) {
-      toast.success('交易已确认！')
+      toast.success('🎉 兑换已确认！正在更新所有余额...')
       resetForm()
+      
+      // 额外延迟刷新以确保用户看到最新余额
+      setTimeout(() => {
+        toast.success('✅ ETH和代币余额已更新完成！')
+      }, 3000)
     }
   }, [isConfirmed])
   
@@ -253,11 +260,14 @@ function TokenSwap() {
           <div className="flex items-center justify-center space-x-3 mb-2">
             <h1 className="text-3xl font-bold">一灯币兑换</h1>
             <button
-              onClick={refetchAll}
+              onClick={() => {
+                refetchAll()
+                toast.success('🔄 正在刷新数据...')
+              }}
               className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
-              title="刷新数据"
+              title="手动刷新所有数据"
             >
-              <RefreshCw className="h-5 w-5" />
+              <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
           <p className="text-gray-600 mb-6">安全、快速的代币兑换服务</p>
@@ -270,6 +280,9 @@ function TokenSwap() {
               <h3 className="text-xl font-bold text-gray-900 flex items-center space-x-2">
                 <Wallet className="h-6 w-6 text-blue-600" />
                 <span>我的账户余额</span>
+                {isLoading && (
+                  <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" title="更新中..." />
+                )}
               </h3>
               <div className="text-sm text-gray-500">
                 {address && `${address.slice(0, 6)}...${address.slice(-4)}`}
@@ -581,6 +594,9 @@ function TokenSwap() {
             <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
               <DollarSign className="h-5 w-5 text-purple-500" />
               <span>合约资金库存</span>
+              {isLoading && (
+                <RefreshCw className="h-4 w-4 text-purple-500 animate-spin" title="更新中..." />
+              )}
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-purple-50 rounded-lg p-4 text-center">
@@ -605,6 +621,43 @@ function TokenSwap() {
             <div className="mt-3 text-xs text-center text-gray-500">
               💡 显示合约中可用于兑换的资金数量
             </div>
+            
+            {/* 测试充值按钮 - 仅在本地网络显示 */}
+            {isLocalNetwork && (
+              <div className="mt-4 text-center space-y-2">
+                {/* 充值一灯币按钮 */}
+                {contractTokenBalance !== undefined && parseFloat(contractTokenBalance) < 100000 && (
+                  <div>
+                    <button
+                      onClick={() => mintAndDepositTestTokens("2000000")}
+                      disabled={isLoading || !address}
+                      className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed flex items-center space-x-2 mx-auto"
+                    >
+                      <span>🪙</span>
+                      <span>{isLoading ? "处理中..." : "充值2000000一灯币到合约"}</span>
+                    </button>
+                    <p className="text-xs text-gray-500 mt-1">给合约充值一灯币用于用户购买</p>
+                  </div>
+                )}
+                
+                {/* 充值ETH按钮 */}
+                {contractETHBalance !== undefined && parseFloat(contractETHBalance) < 0.1 && (
+                  <div>
+                    <button
+                      onClick={() => depositETHToContract("1")}
+                      disabled={isLoading || !address}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed flex items-center space-x-2 mx-auto"
+                    >
+                      <span>💎</span>
+                      <span>{isLoading ? "处理中..." : "充值1ETH到合约"}</span>
+                    </button>
+                    <p className="text-xs text-gray-500 mt-1">给合约充值ETH用于用户出售</p>
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-400">仅测试环境可用</p>
+              </div>
+            )}
           </div>
         )}
         
@@ -615,6 +668,7 @@ function TokenSwap() {
             <div>
               <h4 className="text-sm font-medium text-yellow-800 mb-1">重要提示</h4>
               <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• 交易确认后余额会自动实时更新，无需手动刷新</li>
                 <li>• 交易需要支付网络gas费用</li>
                 <li>• 出售代币前需要先授权合约使用您的代币（一次性授权）</li>
                 <li>• 兑换按固定汇率执行，设置滑点容差防止价格变动</li>

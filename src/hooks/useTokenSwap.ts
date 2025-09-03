@@ -239,7 +239,7 @@ const ERC20_ABI = [
 // 最大授权金额常量
 const MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
 
-export function useTokenSwap() {
+export function useTokenSwap(refetchETHBalance?: () => void) {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const [isLoading, setIsLoading] = useState(false);
@@ -331,6 +331,7 @@ export function useTokenSwap() {
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
 
   const refetchAll = () => {
+    console.log('🔄 刷新所有数据...')
     refetchRate()
     refetchFees()
     refetchContractTokenBalance()
@@ -338,17 +339,51 @@ export function useTokenSwap() {
     refetchTokenAddress()
     refetchUserTokenBalance()
     refetchAllowance()
+    
+    // 刷新ETH余额
+    if (refetchETHBalance) {
+      refetchETHBalance()
+    }
   }
   
   useEffect(() => {
     if (isConfirmed) {
+      console.log('🔄 交易确认，开始刷新数据...', { hash, lastApprovalHash })
+      
       if (hash === lastApprovalHash) {
+        // 授权交易确认
         refetchAllowance()
         setTimeout(() => refetchAllowance(), 1000)
         setTimeout(() => refetchAllowance(), 3000)
         toast.success('授权已完成！现在可以进行兑换操作')
+      } else {
+        // 兑换交易确认 - 立即刷新所有数据
+        toast.success('🎉 兑换成功！余额已更新')
+        
+        // 立即刷新
+        refetchAll()
+        
+        // 延迟刷新确保数据同步
+        setTimeout(() => {
+          console.log('🔄 延迟刷新数据 - 1秒后')
+          refetchAll()
+        }, 1000)
+        
+        setTimeout(() => {
+          console.log('🔄 延迟刷新数据 - 3秒后')
+          refetchAll()
+        }, 3000)
+        
+        // 额外刷新用户余额（最重要）
+        setTimeout(() => {
+          console.log('🔄 最终刷新用户余额 - 5秒后')
+          refetchUserTokenBalance()
+          // 也刷新ETH余额
+          if (refetchETHBalance) {
+            refetchETHBalance()
+          }
+        }, 5000)
       }
-      setTimeout(() => refetchAll(), 2000)
     }
   }, [isConfirmed, hash, lastApprovalHash])
   
@@ -413,7 +448,7 @@ export function useTokenSwap() {
       });
 
       const networkName = getNetworkName(chainId);
-      toast.success(`购买交易已提交到 ${networkName}`);
+      toast.success(`购买交易已提交到 ${networkName}，等待确认后余额将自动更新`);
     } catch (err: any) {
       console.error("购买代币失败:", err);
       let errorMessage = "购买失败";
@@ -502,7 +537,7 @@ export function useTokenSwap() {
       });
 
       const networkName = getNetworkName(chainId);
-      toast.success(`出售交易已提交到 ${networkName}`);
+      toast.success(`出售交易已提交到 ${networkName}，等待确认后余额将自动更新`);
     } catch (err: any) {
       console.error("出售代币失败:", err);
       let errorMessage = "出售失败";
@@ -524,7 +559,7 @@ export function useTokenSwap() {
     }
   };
 
-  // 新增：测试充值函数 - 铸造代币并充值到合约
+  // 新增：完整的测试充值函数 - 铸造代币并充值到合约
   const mintAndDepositTestTokens = async (amount: string = "10000") => {
     if (!isConnected || !address || !yiDengTokenAddress || !contractAddress) {
       toast.error('钱包未连接或合约地址未获取')
@@ -535,15 +570,18 @@ export function useTokenSwap() {
       setIsLoading(true)
       const mintAmount = parseUnits(amount, 18)
       
-      console.log('🏭 开始测试充值流程:', {
-        step: 1,
-        action: "铸造代币",
+      console.log('🏭 开始完整充值流程:', {
         tokenAddress: yiDengTokenAddress,
-        recipient: address,
+        contractAddress,
+        userAddress: address,
         amount: amount
       })
       
+      // 提示用户需要确认多个交易
+      toast.success(`开始充值流程：需要确认3个交易`);
+      
       // 第一步：铸造代币给当前用户
+      console.log('步骤1: 铸造代币')
       await writeContract({
         address: yiDengTokenAddress,
         abi: ERC20_ABI,
@@ -551,21 +589,66 @@ export function useTokenSwap() {
         args: [address, mintAmount],
       });
 
-      toast.success(`步骤1/3: 正在铸造 ${amount} 一灯币到您的账户...`);
+      toast.success(`步骤1完成: 已铸造 ${amount} 一灯币到您的账户`);
+      
+      // 等待用户确认铸造后，提示下一步
+      setTimeout(async () => {
+        try {
+          // 第二步：授权合约使用用户的代币
+          console.log('步骤2: 授权合约')
+          await writeContract({
+            address: yiDengTokenAddress,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [contractAddress as `0x${string}`, mintAmount],
+          });
+
+          toast.success(`步骤2完成: 已授权合约使用代币`);
+          
+          // 等待授权确认后，执行最后一步
+          setTimeout(async () => {
+            try {
+              // 第三步：调用合约的depositTokens函数
+              console.log('步骤3: 转移代币到合约')
+              await writeContract({
+                address: contractAddress as `0x${string}`,
+                abi: TOKEN_SWAP_ABI,
+                functionName: "depositTokens",
+                args: [mintAmount],
+              });
+
+              toast.success(`✅ 充值完成！${amount} 一灯币已添加到合约中`);
+              
+              // 刷新数据
+              setTimeout(() => refetchAll(), 2000);
+              
+            } catch (err: any) {
+              console.error("步骤3失败:", err);
+              toast.error("转移代币到合约失败：" + (err.message || "未知错误"));
+            }
+          }, 3000); // 等待3秒让授权交易确认
+          
+        } catch (err: any) {
+          console.error("步骤2失败:", err);
+          toast.error("授权合约失败：" + (err.message || "未知错误"));
+        }
+      }, 3000); // 等待3秒让铸造交易确认
       
     } catch (err: any) {
-      console.error("铸造代币失败:", err);
-      let errorMessage = "铸造失败";
+      console.error("步骤1失败:", err);
+      let errorMessage = "铸造代币失败";
       if (err.message?.includes("User rejected")) {
-        errorMessage = "用户取消了铸造";
+        errorMessage = "用户取消了操作";
       } else if (err.message?.includes("Ownable: caller is not the owner")) {
-        errorMessage = "只有合约所有者可以铸造代币";
+        errorMessage = "需要合约所有者权限来铸造代币";
       } else if (err.message) {
         errorMessage = `铸造失败: ${err.message}`;
       }
       toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      // 注意：这里不立即设置loading为false，因为后续还有步骤
+      // 实际的loading状态会在最后一步完成时设置
+      setTimeout(() => setIsLoading(false), 10000); // 10秒后强制解除loading状态
     }
   }
 
@@ -622,7 +705,7 @@ export function useTokenSwap() {
     }
   }
 
-  // 新增：充值ETH到合约（简化版本）
+  // 新增：充值ETH到合约
   const depositETHToContract = async (amount: string = "1") => {
     if (!isConnected || !address || !contractAddress) {
       toast.error('钱包未连接或合约地址未获取')
@@ -632,6 +715,12 @@ export function useTokenSwap() {
     try {
       setIsLoading(true)
       
+      console.log('💎 充值ETH到合约:', {
+        contractAddress,
+        amount,
+        userAddress: address
+      })
+      
       await writeContract({
         address: contractAddress as `0x${string}`,
         abi: TOKEN_SWAP_ABI,
@@ -640,7 +729,10 @@ export function useTokenSwap() {
         value: parseEther(amount),
       });
 
-      toast.success(`正在充值 ${amount} ETH 到兑换合约...`);
+      toast.success(`✅ 成功充值 ${amount} ETH 到合约！`);
+      
+      // 刷新数据
+      setTimeout(() => refetchAll(), 2000);
       
     } catch (err: any) {
       console.error("充值ETH失败:", err);
@@ -649,8 +741,10 @@ export function useTokenSwap() {
         errorMessage = "用户取消了充值";
       } else if (err.message?.includes("insufficient funds")) {
         errorMessage = "ETH余额不足";
+      } else if (err.message?.includes("Ownable: caller is not the owner")) {
+        errorMessage = "需要合约所有者权限";
       } else if (err.message) {
-        errorMessage = `充值ETH失败: ${err.message}`;
+        errorMessage = `充值失败: ${err.message}`;
       }
       toast.error(errorMessage);
     } finally {
