@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Bug, Copy, ExternalLink, RefreshCw } from 'lucide-react'
+import { Bug, Copy, RefreshCw } from 'lucide-react'
 import { useWeb3 } from '../contexts/Web3Context'
 import { useTokenSwap } from '../hooks/useTokenSwap'
 import { debugContractInfo } from '../config/tokenSwap'
@@ -20,6 +20,9 @@ function DebugPanel() {
     userTokenBalance,
     yiDengTokenAddress,
     allowance,
+    rawUserTokenBalance,
+    userBalanceError,
+    isLoadingUserBalance,
     refetchAll,
   } = useTokenSwap()
   
@@ -52,7 +55,10 @@ function DebugPanel() {
       '钱包地址': address,
       '已连接': isConnected,
       'ETH余额': balance,
-      '一灯币余额': userTokenBalance,
+      '一灯币余额(显示)': userTokenBalance,
+      '一灯币余额(原始)': rawUserTokenBalance?.toString(),
+      '余额加载中': isLoadingUserBalance,
+      '余额获取错误': userBalanceError?.message,
       '授权额度': allowance,
     },
     环境变量: {
@@ -77,15 +83,38 @@ function DebugPanel() {
     
     // 检查合约状态
     console.group('📄 合约状态')
-    console.log('合约地址:', contractAddress)
-    console.log('代币合约地址:', yiDengTokenAddress)
+    console.log('兑换合约地址:', contractAddress)
+    console.log('一灯币合约地址:', yiDengTokenAddress)
     console.log('合约可用:', isContractAvailable)
     console.log('兑换率:', exchangeRate)
     console.log('手续费率:', feeRates)
     console.groupEnd()
     
+    // 重点检查一灯币余额
+    console.group('🪙 一灯币余额详细检查')
+    console.log('一灯币合约地址:', yiDengTokenAddress)
+    console.log('用户钱包地址:', address)
+    console.log('余额加载状态:', isLoadingUserBalance)
+    console.log('原始余额数据:', rawUserTokenBalance?.toString())
+    console.log('格式化余额:', userTokenBalance)
+    console.log('余额获取错误:', userBalanceError)
+    
+    if (!yiDengTokenAddress) {
+      console.error('❌ 无法获取一灯币合约地址，请检查兑换合约是否正确部署')
+    }
+    if (!address) {
+      console.error('❌ 用户地址为空，请检查钱包连接')
+    }
+    if (userBalanceError) {
+      console.error('❌ 获取余额时出错:', userBalanceError)
+    }
+    if (rawUserTokenBalance === undefined && !isLoadingUserBalance) {
+      console.warn('⚠️ 余额数据为undefined且不在加载中，可能是合约调用失败')
+    }
+    console.groupEnd()
+    
     // 检查余额状态
-    console.group('💰 余额状态')
+    console.group('💰 所有余额状态')
     console.log('用户ETH余额:', balance)
     console.log('用户YD余额:', userTokenBalance)
     console.log('合约ETH库存:', contractETHBalance)
@@ -96,15 +125,43 @@ function DebugPanel() {
     // 检查潜在问题
     console.group('⚠️ 潜在问题检查')
     if (!isConnected) console.warn('❌ 钱包未连接')
-    if (!contractAddress) console.warn('❌ 找不到合约地址')
+    if (!contractAddress) console.warn('❌ 找不到兑换合约地址')
+    if (!yiDengTokenAddress) console.warn('❌ 找不到一灯币合约地址')
     if (!isContractAvailable) console.warn('❌ 合约不可用')
     if (exchangeRate === 0) console.warn('❌ 兑换率为0')
     if (parseFloat(contractTokenBalance) === 0) console.warn('⚠️ 合约中没有代币库存')
     if (parseFloat(contractETHBalance) === 0) console.warn('⚠️ 合约中没有ETH库存')
-    if (parseFloat(userTokenBalance) === 0) console.warn('ℹ️ 用户没有一灯币')
+    if (parseFloat(userTokenBalance) === 0 && !userBalanceError) console.warn('ℹ️ 用户没有一灯币（或余额获取失败）')
     console.groupEnd()
     
     console.log('✅ 诊断完成，请查看上述信息')
+  }
+  
+  // 测试直接调用一灯币余额
+  const testTokenBalance = async () => {
+    if (!yiDengTokenAddress || !address) {
+      console.error('❌ 缺少必要参数进行余额测试')
+      return
+    }
+    
+    console.group('🧪 测试一灯币余额获取')
+    console.log('准备调用 balanceOf:', {
+      tokenContract: yiDengTokenAddress,
+      userAddress: address
+    })
+    
+    try {
+      // 这里可以添加直接的合约调用测试
+      console.log('当前余额数据状态:', {
+        raw: rawUserTokenBalance?.toString(),
+        formatted: userTokenBalance,
+        loading: isLoadingUserBalance,
+        error: userBalanceError
+      })
+    } catch (error) {
+      console.error('测试失败:', error)
+    }
+    console.groupEnd()
   }
   
   // 仅在开发环境显示
@@ -145,6 +202,38 @@ function DebugPanel() {
               </button>
             </div>
             
+            {/* 一灯币余额专项测试 */}
+            <div className="bg-yellow-50 rounded p-2">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-medium text-yellow-700">一灯币余额检查</span>
+                <button
+                  onClick={testTokenBalance}
+                  className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+                >
+                  测试
+                </button>
+              </div>
+              <div className="text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>显示余额:</span>
+                  <span className="font-mono">{userTokenBalance}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>原始数据:</span>
+                  <span className="font-mono break-all">{rawUserTokenBalance?.toString() || '无'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>加载状态:</span>
+                  <span>{isLoadingUserBalance ? '加载中...' : '已完成'}</span>
+                </div>
+                {userBalanceError && (
+                  <div className="text-red-600 text-xs break-words">
+                    错误: {userBalanceError.message}
+                  </div>
+                )}
+              </div>
+            </div>
+            
             {/* 调试信息展示 */}
             <div className="space-y-2 text-xs">
               {Object.entries(debugInfo).map(([category, data]) => (
@@ -152,9 +241,9 @@ function DebugPanel() {
                   <div className="font-medium text-gray-700 mb-1">{category}</div>
                   {Object.entries(data).map(([key, value]) => (
                     <div key={key} className="flex justify-between items-center py-0.5">
-                      <span className="text-gray-600">{key}:</span>
+                      <span className="text-gray-600 text-xs">{key}:</span>
                       <div className="flex items-center space-x-1">
-                        <span className="text-gray-800 font-mono text-xs break-all">
+                        <span className="text-gray-800 font-mono text-xs break-all max-w-32">
                           {typeof value === 'boolean' ? (value ? '✅' : '❌') : (value || '未设置')}
                         </span>
                         {typeof value === 'string' && value.startsWith('0x') && (
@@ -178,19 +267,22 @@ function DebugPanel() {
               <div className="text-xs font-medium text-red-700 mb-1">常见问题检查</div>
               <div className="space-y-1 text-xs">
                 {!isConnected && <div className="text-red-600">❌ 钱包未连接</div>}
-                {!contractAddress && <div className="text-red-600">❌ 合约地址未配置</div>}
+                {!contractAddress && <div className="text-red-600">❌ 兑换合约地址未配置</div>}
+                {!yiDengTokenAddress && contractAddress && <div className="text-red-600">❌ 无法获取一灯币合约地址</div>}
                 {!isContractAvailable && <div className="text-red-600">❌ 合约不可用</div>}
                 {exchangeRate === 0 && <div className="text-red-600">❌ 兑换率为0</div>}
                 {parseFloat(contractTokenBalance) === 0 && <div className="text-yellow-600">⚠️ 合约YD库存为0</div>}
                 {parseFloat(contractETHBalance) === 0 && <div className="text-yellow-600">⚠️ 合约ETH库存为0</div>}
-                {isConnected && isContractAvailable && parseFloat(contractTokenBalance) > 0 && parseFloat(contractETHBalance) > 0 && (
+                {userBalanceError && <div className="text-red-600">❌ 一灯币余额获取失败</div>}
+                {isLoadingUserBalance && <div className="text-blue-600">🔄 正在加载一灯币余额</div>}
+                {isConnected && isContractAvailable && yiDengTokenAddress && !userBalanceError && !isLoadingUserBalance && (
                   <div className="text-green-600">✅ 基本检查通过</div>
                 )}
               </div>
             </div>
             
             <div className="text-xs text-gray-500 pt-2 border-t">
-              💡 运行诊断查看详细日志，或检查浏览器控制台
+              💡 运行诊断查看详细日志，重点关注一灯币余额获取
             </div>
           </div>
         )}

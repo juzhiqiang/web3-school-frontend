@@ -757,16 +757,25 @@ export function useTokenSwap() {
   // 获取当前网络的合约地址
   useEffect(() => {
     try {
+<<<<<<< HEAD
       const addr = getContractAddress(chainId);
       setContractAddress(addr);
     } catch (error) {
       console.warn(`不支持的网络 ${chainId}:`, error);
       setContractAddress(undefined);
+=======
+      const addr = getContractAddress(chainId)
+      console.log(`🔗 设置合约地址 (${chainId}):`, addr)
+      setContractAddress(addr)
+    } catch (error) {
+      console.warn(`❌ 不支持的网络 ${chainId}:`, error)
+      setContractAddress(undefined)
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
     }
   }, [chainId]);
 
   // 获取兑换率
-  const { data: exchangeRate, refetch: refetchRate } = useReadContract({
+  const { data: exchangeRate, refetch: refetchRate, error: rateError } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: TOKEN_SWAP_ABI,
     functionName: "rate",
@@ -800,9 +809,10 @@ export function useTokenSwap() {
     });
 
   // 获取一灯币合约地址
-  const { data: yiDengTokenAddress } = useReadContract({
+  const { data: yiDengTokenAddress, refetch: refetchTokenAddress, error: tokenAddressError } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: TOKEN_SWAP_ABI,
+<<<<<<< HEAD
     functionName: "yiDengToken",
     query: { enabled: !!contractAddress },
   });
@@ -817,6 +827,62 @@ export function useTokenSwap() {
       query: { enabled: !!yiDengTokenAddress && !!address },
     });
 
+=======
+    functionName: 'yiDengToken',
+    query: { enabled: !!contractAddress }
+  })
+  
+  // 调试一灯币合约地址获取
+  useEffect(() => {
+    if (contractAddress) {
+      console.log(`🪙 获取一灯币合约地址从兑换合约: ${contractAddress}`)
+      if (yiDengTokenAddress) {
+        console.log(`✅ 一灯币合约地址: ${yiDengTokenAddress}`)
+      } else if (tokenAddressError) {
+        console.error(`❌ 获取一灯币合约地址失败:`, tokenAddressError)
+      } else {
+        console.log(`⏳ 正在获取一灯币合约地址...`)
+      }
+    }
+  }, [contractAddress, yiDengTokenAddress, tokenAddressError])
+  
+  // 获取用户的一灯币余额
+  const { 
+    data: userTokenBalance, 
+    refetch: refetchUserTokenBalance, 
+    error: userBalanceError,
+    isLoading: isLoadingUserBalance 
+  } = useReadContract({
+    address: yiDengTokenAddress,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { 
+      enabled: !!yiDengTokenAddress && !!address,
+      retry: 3,
+      retryDelay: 1000
+    }
+  })
+  
+  // 调试用户一灯币余额获取
+  useEffect(() => {
+    if (address && yiDengTokenAddress) {
+      console.log(`👤 获取用户余额:`, {
+        userAddress: address,
+        tokenAddress: yiDengTokenAddress,
+        isLoading: isLoadingUserBalance
+      })
+      
+      if (userTokenBalance !== undefined) {
+        console.log(`💰 用户一灯币余额 (raw):`, userTokenBalance.toString())
+        console.log(`💰 用户一灯币余额 (formatted):`, formatUnits(userTokenBalance, 18))
+      } else if (userBalanceError) {
+        console.error(`❌ 获取用户一灯币余额失败:`, userBalanceError)
+      }
+    }
+  }, [address, yiDengTokenAddress, userTokenBalance, userBalanceError, isLoadingUserBalance])
+  
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
   // 获取用户对合约的授权额度
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: yiDengTokenAddress,
@@ -838,6 +904,7 @@ export function useTokenSwap() {
 
   // 刷新所有数据
   const refetchAll = () => {
+<<<<<<< HEAD
     refetchRate();
     refetchFees();
     refetchContractTokenBalance();
@@ -854,6 +921,29 @@ export function useTokenSwap() {
   }, [isConfirmed]);
 
   // 修复：使用合约的计算函数而非本地计算
+=======
+    console.log('🔄 刷新所有数据...')
+    refetchRate()
+    refetchFees()
+    refetchContractTokenBalance()
+    refetchContractETHBalance()
+    refetchTokenAddress()
+    refetchUserTokenBalance()
+    refetchAllowance()
+  }
+  
+  // 监听交易确认，刷新数据
+  useEffect(() => {
+    if (isConfirmed) {
+      console.log('✅ 交易已确认，刷新数据...')
+      setTimeout(() => {
+        refetchAll()
+      }, 2000) // 延迟2秒刷新，确保区块链状态更新
+    }
+  }, [isConfirmed])
+  
+  // 使用合约的计算函数而非本地计算
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
   const calculateTokensForETH = (ethAmount: string): string => {
     if (!exchangeRate || !ethAmount || !contractAddress) return "0";
     try {
@@ -869,9 +959,15 @@ export function useTokenSwap() {
       console.error("计算代币数量失败:", error);
       return "0";
     }
+<<<<<<< HEAD
   };
 
   // 修复：使用正确的出售计算逻辑
+=======
+  }
+  
+  // 使用正确的出售计算逻辑
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
   const calculateETHForTokens = (tokenAmount: string): string => {
     if (!exchangeRate || !tokenAmount || !contractAddress) return "0";
     try {
@@ -887,9 +983,15 @@ export function useTokenSwap() {
       console.error("计算ETH数量失败:", error);
       return "0";
     }
+<<<<<<< HEAD
   };
 
   // 修复：购买代币函数
+=======
+  }
+  
+  // 购买代币函数
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
   const buyTokens = async (ethAmount: string, slippage: number = 1) => {
     if (!isConnected || !address || !exchangeRate || !contractAddress) {
       toast.error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
@@ -918,8 +1020,15 @@ export function useTokenSwap() {
         expectedTokens,
         minTokenAmount: minTokenAmount.toString(),
         slippage,
+<<<<<<< HEAD
       });
 
+=======
+        contractAddress,
+        userAddress: address
+      })
+      
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
       await writeContract({
         address: contractAddress as `0x${string}`,
         abi: TOKEN_SWAP_ABI,
@@ -949,6 +1058,7 @@ export function useTokenSwap() {
     } finally {
       setIsLoading(false);
     }
+<<<<<<< HEAD
   };
 
   // 修复：授权代币函数
@@ -956,9 +1066,25 @@ export function useTokenSwap() {
     if (!isConnected || !address || !yiDengTokenAddress || !contractAddress) {
       toast.error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
       return;
+=======
+  }
+  
+  // 授权代币函数
+  const approveTokens = async (amount: string) => {
+    if (!isConnected || !address || !yiDengTokenAddress || !contractAddress) {
+      toast.error('钱包未连接或合约地址未获取')
+      console.error('授权失败 - 缺少必要信息:', {
+        isConnected,
+        address,
+        yiDengTokenAddress,
+        contractAddress
+      })
+      return
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
     }
 
     try {
+<<<<<<< HEAD
       setIsLoading(true);
 
       console.log("授权参数:", {
@@ -967,6 +1093,17 @@ export function useTokenSwap() {
         amount: parseUnits(amount, 18).toString(),
       });
 
+=======
+      setIsLoading(true)
+      
+      console.log('🔐 授权参数:', {
+        tokenAddress: yiDengTokenAddress,
+        spender: contractAddress,
+        amount: parseUnits(amount, 18).toString(),
+        userAddress: address
+      })
+      
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
       await writeContract({
         address: yiDengTokenAddress,
         abi: ERC20_ABI,
@@ -989,9 +1126,15 @@ export function useTokenSwap() {
     } finally {
       setIsLoading(false);
     }
+<<<<<<< HEAD
   };
 
   // 修复：出售代币函数
+=======
+  }
+  
+  // 出售代币函数
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
   const sellTokens = async (tokenAmount: string, slippage: number = 1) => {
     if (!isConnected || !address || !exchangeRate || !contractAddress) {
       toast.error(ERROR_MESSAGES.WALLET_NOT_CONNECTED);
@@ -1010,15 +1153,29 @@ export function useTokenSwap() {
       setIsLoading(true);
       const minETHAmount = parseEther(
         (parseFloat(expectedETH) * (1 - slippage / 100)).toFixed(18)
+<<<<<<< HEAD
       );
 
       console.log("出售参数:", {
+=======
+      )
+      
+      console.log('🔄 出售参数:', {
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
         tokenAmount,
         expectedETH,
         minETHAmount: minETHAmount.toString(),
         slippage,
+<<<<<<< HEAD
       });
 
+=======
+        userTokenBalance: userTokenBalance?.toString(),
+        contractAddress,
+        userAddress: address
+      })
+      
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
       await writeContract({
         address: contractAddress as `0x${string}`,
         abi: TOKEN_SWAP_ABI,
@@ -1057,8 +1214,19 @@ export function useTokenSwap() {
   const needsApproval = (tokenAmount: string): boolean => {
     if (!allowance || !tokenAmount) return true; // 如果无法获取授权额度，默认需要授权
     try {
+<<<<<<< HEAD
       const amountInWei = parseUnits(tokenAmount, 18);
       return BigInt(allowance.toString()) < amountInWei;
+=======
+      const amountInWei = parseUnits(tokenAmount, 18)
+      const needsAuth = BigInt(allowance.toString()) < amountInWei
+      console.log(`🔐 检查授权状态:`, {
+        tokenAmount,
+        allowance: allowance.toString(),
+        needsAuthorization: needsAuth
+      })
+      return needsAuth
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
     } catch {
       return true;
     }
@@ -1068,11 +1236,23 @@ export function useTokenSwap() {
   const hasEnoughBalance = (amount: string, type: "token" | "eth"): boolean => {
     if (!amount) return false;
     try {
+<<<<<<< HEAD
       if (type === "token") {
         const amountInWei = parseUnits(amount, 18);
         return userTokenBalance
           ? BigInt(userTokenBalance.toString()) >= amountInWei
           : false;
+=======
+      if (type === 'token') {
+        const amountInWei = parseUnits(amount, 18)
+        const hasBalance = userTokenBalance ? BigInt(userTokenBalance.toString()) >= amountInWei : false
+        console.log(`💰 检查代币余额:`, {
+          requestedAmount: amount,
+          userBalance: userTokenBalance?.toString(),
+          hasEnoughBalance: hasBalance
+        })
+        return hasBalance
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
       }
       // ETH余额检查在组件中处理
       return true;
@@ -1083,9 +1263,35 @@ export function useTokenSwap() {
 
   // 检查合约是否可用
   const isContractAvailable = (): boolean => {
+<<<<<<< HEAD
     return !!contractAddress && !!exchangeRate;
   };
 
+=======
+    const available = !!contractAddress && !!exchangeRate
+    if (contractAddress && !exchangeRate && rateError) {
+      console.error('❌ 合约可达但无法获取兑换率:', rateError)
+    }
+    return available
+  }
+  
+  // 格式化余额显示
+  const formatUserTokenBalance = (): string => {
+    if (!userTokenBalance) return '0'
+    try {
+      const formatted = formatUnits(userTokenBalance, 18)
+      console.log(`🪙 格式化一灯币余额:`, {
+        raw: userTokenBalance.toString(),
+        formatted
+      })
+      return formatted
+    } catch (error) {
+      console.error('格式化余额失败:', error)
+      return '0'
+    }
+  }
+  
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
   return {
     // 网络信息
     chainId,
@@ -1110,12 +1316,24 @@ export function useTokenSwap() {
       : "0",
 
     // 用户状态
+<<<<<<< HEAD
     userTokenBalance: userTokenBalance
       ? formatUnits(userTokenBalance, 18)
       : "0",
     allowance: allowance ? formatUnits(allowance, 18) : "0",
     yiDengTokenAddress,
 
+=======
+    userTokenBalance: formatUserTokenBalance(),
+    allowance: allowance ? formatUnits(allowance, 18) : '0',
+    yiDengTokenAddress,
+    
+    // 调试信息
+    rawUserTokenBalance: userTokenBalance,
+    userBalanceError,
+    isLoadingUserBalance,
+    
+>>>>>>> 2c265d2748568fb5ca6e316f3aeeb2c9f8d8749b
     // 计算函数
     calculateTokensForETH,
     calculateETHForTokens,
