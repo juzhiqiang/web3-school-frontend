@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react'
+import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
 import { TOKEN_SWAP_CONFIG, ERROR_MESSAGES } from '../../config/tokenSwap'
@@ -8,6 +8,11 @@ import toast from 'react-hot-toast'
 function TokenSwap() {
   const { isConnected, address, balance } = useWeb3()
   const {
+    chainId,
+    contractAddress,
+    networkName,
+    isLocalNetwork,
+    isContractAvailable,
     exchangeRate,
     feeRates,
     contractTokenBalance,
@@ -81,6 +86,11 @@ function TokenSwap() {
   
   // 处理兑换
   const handleSwap = async () => {
+    if (!isContractAvailable) {
+      toast.error(ERROR_MESSAGES.CONTRACT_NOT_DEPLOYED)
+      return
+    }
+    
     if (!inputAmount || parseFloat(inputAmount) <= 0) {
       toast.error(ERROR_MESSAGES.INVALID_AMOUNT)
       return
@@ -114,6 +124,15 @@ function TokenSwap() {
   
   // 获取按钮文本和状态
   const getButtonConfig = () => {
+    if (!isContractAvailable) {
+      return { 
+        text: `合约未部署到${networkName}`, 
+        disabled: true, 
+        className: 'bg-red-400',
+        action: undefined
+      }
+    }
+    
     if (isLoading) {
       return { text: '交易中...', disabled: true, className: 'bg-gray-400' }
     }
@@ -162,6 +181,35 @@ function TokenSwap() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
+        {/* 网络状态提示 */}
+        <div className="mb-6 bg-white rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              {isContractAvailable ? (
+                <Wifi className="h-5 w-5 text-green-500" />
+              ) : (
+                <WifiOff className="h-5 w-5 text-red-500" />
+              )}
+              <div>
+                <p className="font-medium">
+                  {networkName} {isLocalNetwork && '(本地网络)'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {isContractAvailable 
+                    ? `合约地址: ${contractAddress?.slice(0, 6)}...${contractAddress?.slice(-4)}`
+                    : '合约未部署到当前网络'
+                  }
+                </p>
+              </div>
+            </div>
+            {isLocalNetwork && (
+              <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                开发环境
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* 标题和统计信息 */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-3 mb-2">
@@ -176,28 +224,51 @@ function TokenSwap() {
           </div>
           <p className="text-gray-600 mb-6">安全、快速的代币兑换服务</p>
           
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">当前兑换率</span>
-                <TrendingUp className="h-4 w-4 text-blue-500" />
+          {isContractAvailable && (
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">当前兑换率</span>
+                  <TrendingUp className="h-4 w-4 text-blue-500" />
+                </div>
+                <p className="text-lg font-bold text-blue-600">
+                  1 ETH = {exchangeRate.toLocaleString()} YD
+                </p>
               </div>
-              <p className="text-lg font-bold text-blue-600">
-                1 ETH = {exchangeRate.toLocaleString()} YD
-              </p>
+              
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">手续费率</span>
+                  <AlertCircle className="h-4 w-4 text-green-500" />
+                </div>
+                <p className="text-lg font-bold text-green-600">
+                  买入 {feeRates.buyFee}% / 卖出 {feeRates.sellFee}%
+                </p>
+              </div>
             </div>
-            
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">手续费率</span>
-                <AlertCircle className="h-4 w-4 text-green-500" />
+          )}
+        </div>
+        
+        {/* 合约不可用提示 */}
+        {!isContractAvailable && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h4 className="text-sm font-medium text-red-800 mb-1">合约不可用</h4>
+                <p className="text-sm text-red-700">
+                  一灯币兑换合约尚未部署到当前网络 ({networkName})。
+                  {isLocalNetwork && '请确保在本地网络中部署了合约，或设置正确的合约地址。'}
+                </p>
+                {isLocalNetwork && (
+                  <div className="mt-2 text-xs text-red-600">
+                    <p>环境变量配置：VITE_LOCAL_CONTRACT_ADDRESS</p>
+                  </div>
+                )}
               </div>
-              <p className="text-lg font-bold text-green-600">
-                买入 {feeRates.buyFee}% / 卖出 {feeRates.sellFee}%
-              </p>
             </div>
           </div>
-        </div>
+        )}
         
         {/* 兑换界面 */}
         <div className="bg-white rounded-xl shadow-lg p-6">
@@ -247,7 +318,8 @@ function TokenSwap() {
                   placeholder="0.0"
                   step="any"
                   min="0"
-                  className="flex-1 text-2xl font-bold bg-transparent border-none outline-none placeholder-gray-400"
+                  disabled={!isContractAvailable}
+                  className="flex-1 text-2xl font-bold bg-transparent border-none outline-none placeholder-gray-400 disabled:opacity-50"
                 />
                 <div className="flex items-center space-x-2">
                   <span className="font-medium text-gray-700">
@@ -255,7 +327,8 @@ function TokenSwap() {
                   </span>
                   <button
                     onClick={handleMaxClick}
-                    className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                    disabled={!isContractAvailable}
+                    className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     最大
                   </button>
@@ -267,7 +340,8 @@ function TokenSwap() {
             <div className="flex justify-center">
               <button
                 onClick={toggleSwapMode}
-                className="bg-white border border-gray-200 rounded-full p-3 shadow-md hover:shadow-lg transition-all duration-200 group"
+                disabled={!isContractAvailable}
+                className="bg-white border border-gray-200 rounded-full p-3 shadow-md hover:shadow-lg transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ArrowUpDown className="h-5 w-5 text-gray-500 group-hover:text-blue-500 transition-colors" />
               </button>
@@ -279,15 +353,15 @@ function TokenSwap() {
                 <label className="text-sm font-medium text-gray-700">
                   预计获得
                 </label>
-                {inputAmount && (
+                {inputAmount && isContractAvailable && (
                   <span className="text-xs text-gray-500">
-                    {swapMode === 'buy' ? '扣除手续费后' : '扣除手续费后'}
+                    扣除手续费后
                   </span>
                 )}
               </div>
               <div className="flex items-center space-x-3">
                 <div className="flex-1 text-2xl font-bold text-gray-900">
-                  {outputAmount ? parseFloat(outputAmount).toFixed(6) : '0.0'}
+                  {outputAmount && isContractAvailable ? parseFloat(outputAmount).toFixed(6) : '0.0'}
                 </div>
                 <span className="font-medium text-gray-700">
                   {swapMode === 'buy' ? 'YD' : 'ETH'}
@@ -297,7 +371,7 @@ function TokenSwap() {
           </div>
           
           {/* 交易详情 */}
-          {inputAmount && parseFloat(inputAmount) > 0 && (
+          {inputAmount && parseFloat(inputAmount) > 0 && isContractAvailable && (
             <div className="mt-4 bg-blue-50 rounded-lg p-4">
               <h4 className="text-sm font-medium text-blue-800 mb-2">交易详情</h4>
               <div className="text-xs text-blue-700 space-y-1">
@@ -313,41 +387,47 @@ function TokenSwap() {
                   <span>滑点容差</span>
                   <span>{slippage}%</span>
                 </div>
+                <div className="flex justify-between">
+                  <span>网络</span>
+                  <span>{networkName}</span>
+                </div>
               </div>
             </div>
           )}
           
           {/* 高级设置 */}
-          <div className="mt-6">
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="text-sm text-gray-600 hover:text-gray-800 mb-2 flex items-center space-x-1"
-            >
-              <span>高级设置</span>
-              <span>{showAdvanced ? '▲' : '▼'}</span>
-            </button>
-            
-            {showAdvanced && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  滑点容差: {slippage}%
-                </label>
-                <input
-                  type="range"
-                  min={TOKEN_SWAP_CONFIG.MIN_SLIPPAGE}
-                  max={TOKEN_SWAP_CONFIG.MAX_SLIPPAGE}
-                  step="0.1"
-                  value={slippage}
-                  onChange={(e) => setSlippage(parseFloat(e.target.value))}
-                  className="w-full accent-blue-600"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>{TOKEN_SWAP_CONFIG.MIN_SLIPPAGE}%</span>
-                  <span>{TOKEN_SWAP_CONFIG.MAX_SLIPPAGE}%</span>
+          {isContractAvailable && (
+            <div className="mt-6">
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-sm text-gray-600 hover:text-gray-800 mb-2 flex items-center space-x-1"
+              >
+                <span>高级设置</span>
+                <span>{showAdvanced ? '▲' : '▼'}</span>
+              </button>
+              
+              {showAdvanced && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    滑点容差: {slippage}%
+                  </label>
+                  <input
+                    type="range"
+                    min={TOKEN_SWAP_CONFIG.MIN_SLIPPAGE}
+                    max={TOKEN_SWAP_CONFIG.MAX_SLIPPAGE}
+                    step="0.1"
+                    value={slippage}
+                    onChange={(e) => setSlippage(parseFloat(e.target.value))}
+                    className="w-full accent-blue-600"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>{TOKEN_SWAP_CONFIG.MIN_SLIPPAGE}%</span>
+                    <span>{TOKEN_SWAP_CONFIG.MAX_SLIPPAGE}%</span>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
           
           {/* 兑换按钮 */}
           <div className="mt-6">
@@ -372,6 +452,9 @@ function TokenSwap() {
               <p className="text-xs text-blue-600 break-all">
                 交易哈希: {transactionHash}
               </p>
+              <p className="text-xs text-blue-500 mt-1">
+                网络: {networkName}
+              </p>
               {!isConfirmed && (
                 <p className="text-xs text-blue-500 mt-1">等待区块确认中...</p>
               )}
@@ -380,49 +463,51 @@ function TokenSwap() {
         </div>
         
         {/* 用户余额信息 */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2">
-              <Coins className="h-5 w-5 text-yellow-500" />
-              <span>我的余额</span>
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">ETH</span>
-                <span className="font-medium">
-                  {balance ? parseFloat(balance).toFixed(6) : '0.000000'}
-                </span>
+        {isContractAvailable && (
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2">
+                <Coins className="h-5 w-5 text-yellow-500" />
+                <span>我的余额</span>
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">ETH</span>
+                  <span className="font-medium">
+                    {balance ? parseFloat(balance).toFixed(6) : '0.000000'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">一灯币 (YD)</span>
+                  <span className="font-medium">
+                    {parseFloat(userTokenBalance).toFixed(6)}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">一灯币 (YD)</span>
-                <span className="font-medium">
-                  {parseFloat(userTokenBalance).toFixed(6)}
-                </span>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2">
+                <TrendingUp className="h-5 w-5 text-green-500" />
+                <span>流动性池状态</span>
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">池中ETH</span>
+                  <span className="font-medium">
+                    {parseFloat(contractETHBalance).toFixed(6)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">池中YD</span>
+                  <span className="font-medium">
+                    {parseFloat(contractTokenBalance).toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-          
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-green-500" />
-              <span>流动性池状态</span>
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">池中ETH</span>
-                <span className="font-medium">
-                  {parseFloat(contractETHBalance).toFixed(6)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">池中YD</span>
-                <span className="font-medium">
-                  {parseFloat(contractTokenBalance).toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
         
         {/* 注意事项 */}
         <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -435,6 +520,9 @@ function TokenSwap() {
                 <li>• 出售代币前需要先授权合约使用您的代币</li>
                 <li>• 价格可能因市场波动而变化，建议设置合适的滑点容差</li>
                 <li>• 交易一旦提交无法撤销，请仔细确认金额</li>
+                {isLocalNetwork && (
+                  <li>• 当前使用本地测试网络，交易仅用于测试目的</li>
+                )}
               </ul>
             </div>
           </div>
