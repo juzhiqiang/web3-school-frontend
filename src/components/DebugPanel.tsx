@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { Bug, Copy, ExternalLink, RefreshCw } from 'lucide-react'
-import { useWeb3 } from '../../contexts/Web3Context'
-import { useTokenSwap } from '../../hooks/useTokenSwap'
-import { debugContractInfo } from '../../config/tokenSwap'
+import { useWeb3 } from '../contexts/Web3Context'
+import { useTokenSwap } from '../hooks/useTokenSwap'
+import { debugContractInfo } from '../config/tokenSwap'
 
 // 开发环境调试工具组件
 function DebugPanel() {
