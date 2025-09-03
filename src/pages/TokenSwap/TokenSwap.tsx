@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react'
+import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff, Wallet } from 'lucide-react'
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
 import { TOKEN_SWAP_CONFIG, ERROR_MESSAGES } from '../../config/tokenSwap'
@@ -210,8 +210,8 @@ function TokenSwap() {
           </div>
         </div>
 
-        {/* 标题和统计信息 */}
-        <div className="text-center mb-8">
+        {/* 标题和刷新按钮 */}
+        <div className="text-center mb-6">
           <div className="flex items-center justify-center space-x-3 mb-2">
             <h1 className="text-3xl font-bold">一灯币兑换</h1>
             <button
@@ -223,31 +223,80 @@ function TokenSwap() {
             </button>
           </div>
           <p className="text-gray-600 mb-6">安全、快速的代币兑换服务</p>
-          
-          {isContractAvailable && (
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">当前兑换率</span>
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
-                </div>
-                <p className="text-lg font-bold text-blue-600">
-                  1 ETH = {exchangeRate.toLocaleString()} YD
-                </p>
-              </div>
-              
-              <div className="bg-green-50 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">手续费率</span>
-                  <AlertCircle className="h-4 w-4 text-green-500" />
-                </div>
-                <p className="text-lg font-bold text-green-600">
-                  买入 {feeRates.buyFee}% / 卖出 {feeRates.sellFee}%
-                </p>
+        </div>
+
+        {/* ===== 突出显示的用户余额卡片 ===== */}
+        <div className="mb-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-1">
+          <div className="bg-white rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center space-x-2">
+                <Wallet className="h-6 w-6 text-blue-600" />
+                <span>我的账户余额</span>
+              </h3>
+              <div className="text-sm text-gray-500">
+                {address && `${address.slice(0, 6)}...${address.slice(-4)}`}
               </div>
             </div>
-          )}
+            
+            <div className="grid grid-cols-2 gap-6">
+              {/* ETH 余额 */}
+              <div className="text-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4">
+                <div className="text-3xl font-bold text-blue-700 mb-1">
+                  {balance ? parseFloat(balance).toFixed(4) : '0.0000'}
+                </div>
+                <div className="text-lg font-medium text-gray-600">ETH</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  以太坊
+                </div>
+              </div>
+              
+              {/* 一灯币余额 */}
+              <div className="text-center bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg p-4">
+                <div className="text-3xl font-bold text-orange-600 mb-1">
+                  {parseFloat(userTokenBalance).toFixed(2)}
+                </div>
+                <div className="text-lg font-medium text-gray-600">YD</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  一灯币
+                </div>
+              </div>
+            </div>
+            
+            {/* 余额总览提示 */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
+                <span>🔄 支持双向兑换</span>
+                <span>⚡ 实时更新</span>
+                <span>🔒 安全可靠</span>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* 兑换率和手续费信息 */}
+        {isContractAvailable && (
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-blue-50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">当前兑换率</span>
+                <TrendingUp className="h-4 w-4 text-blue-500" />
+              </div>
+              <p className="text-lg font-bold text-blue-600">
+                1 ETH = {exchangeRate.toLocaleString()} YD
+              </p>
+            </div>
+            
+            <div className="bg-green-50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">手续费率</span>
+                <AlertCircle className="h-4 w-4 text-green-500" />
+              </div>
+              <p className="text-lg font-bold text-green-600">
+                买入 {feeRates.buyFee}% / 卖出 {feeRates.sellFee}%
+              </p>
+            </div>
+          </div>
+        )}
         
         {/* 合约不可用提示 */}
         {!isContractAvailable && (
@@ -303,12 +352,17 @@ function TokenSwap() {
                 <label className="text-sm font-medium text-gray-700">
                   {swapMode === 'buy' ? '支付' : '出售'}
                 </label>
-                <span className="text-xs text-gray-500">
-                  余额: {swapMode === 'buy' 
-                    ? (balance ? `${parseFloat(balance).toFixed(6)} ETH` : '0 ETH')
-                    : `${parseFloat(userTokenBalance).toFixed(6)} YD`
-                  }
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">
+                    余额: 
+                  </span>
+                  <span className="text-sm font-semibold text-blue-600">
+                    {swapMode === 'buy' 
+                      ? (balance ? `${parseFloat(balance).toFixed(6)} ETH` : '0 ETH')
+                      : `${parseFloat(userTokenBalance).toFixed(6)} YD`
+                    }
+                  </span>
+                </div>
               </div>
               <div className="flex items-center space-x-3">
                 <input
@@ -462,48 +516,25 @@ function TokenSwap() {
           )}
         </div>
         
-        {/* 用户余额信息 */}
+        {/* 流动性池状态 */}
         {isContractAvailable && (
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2">
-                <Coins className="h-5 w-5 text-yellow-500" />
-                <span>我的余额</span>
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">ETH</span>
-                  <span className="font-medium">
-                    {balance ? parseFloat(balance).toFixed(6) : '0.000000'}
-                  </span>
+          <div className="mt-8 bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-green-500" />
+              <span>流动性池状态</span>
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-green-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-700 mb-1">
+                  {parseFloat(contractETHBalance).toFixed(4)}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">一灯币 (YD)</span>
-                  <span className="font-medium">
-                    {parseFloat(userTokenBalance).toFixed(6)}
-                  </span>
-                </div>
+                <div className="text-sm text-gray-600">池中ETH</div>
               </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-green-500" />
-                <span>流动性池状态</span>
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">池中ETH</span>
-                  <span className="font-medium">
-                    {parseFloat(contractETHBalance).toFixed(6)}
-                  </span>
+              <div className="bg-green-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-700 mb-1">
+                  {parseFloat(contractTokenBalance).toFixed(0)}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">池中YD</span>
-                  <span className="font-medium">
-                    {parseFloat(contractTokenBalance).toFixed(2)}
-                  </span>
-                </div>
+                <div className="text-sm text-gray-600">池中YD</div>
               </div>
             </div>
           </div>
