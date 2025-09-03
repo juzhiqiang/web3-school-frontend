@@ -11,6 +11,7 @@ import CreateCourse from './pages/CreateCourse/CreateCourse'
 import Financial from './pages/Financial/Financial'
 import Profile from './pages/Profile/Profile'
 import CourseDetails from './pages/CourseDetails/CourseDetails'
+import TokenSwap from './pages/TokenSwap/TokenSwap'
 import './index.css'
 import '@rainbow-me/rainbowkit/styles.css'
 
@@ -28,6 +29,7 @@ function App() {
                   <Route index element={<CourseListing />} />
                   <Route path="create-course" element={<CreateCourse />} />
                   <Route path="financial" element={<Financial />} />
+                  <Route path="token-swap" element={<TokenSwap />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="course/:id" element={<CourseDetails />} />
                   <Route path="course/:id/preview" element={<CourseDetails preview />} />
