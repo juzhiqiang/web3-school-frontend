@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { Bug, Copy, RefreshCw, TestTube } from 'lucide-react'
+import { Bug, Copy, RefreshCw } from 'lucide-react'
 import { useWeb3 } from '../contexts/Web3Context'
 import { useTokenSwap } from '../hooks/useTokenSwap'
-import { useReadContract, useChainId } from 'wagmi'
+import { useReadContract } from 'wagmi'
 import { formatUnits } from 'viem'
 import { debugContractInfo } from '../config/tokenSwap'
 
@@ -61,8 +61,8 @@ function DirectBalanceTest({ tokenAddress, userAddress }: { tokenAddress: string
 // 开发环境调试工具组件
 function DebugPanel() {
   const { isConnected, address, balance } = useWeb3()
-  const chainId = useChainId()
   const {
+    chainId,
     contractAddress,
     networkName,
     isLocalNetwork,
@@ -339,58 +339,6 @@ function DebugPanel() {
             <div className="text-xs text-gray-500 pt-2 border-t">
               💡 直接余额测试会绕过hook逻辑，直接调用合约
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// 直接测试一灯币余额的组件
-function DirectBalanceTest({ tokenAddress, userAddress }: { tokenAddress: string, userAddress: string }) {
-  // 直接调用一灯币合约的balanceOf
-  const { data: directBalance, error: directError, refetch: refetchDirect } = useReadContract({
-    address: tokenAddress as `0x${string}`,
-    abi: [
-      {
-        "inputs": [{"internalType": "address", "name": "owner", "type": "address"}],
-        "name": "balanceOf",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-      }
-    ],
-    functionName: 'balanceOf',
-    args: [userAddress as `0x${string}`],
-  })
-
-  return (
-    <div className="bg-green-50 rounded p-2 mt-2">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-xs font-medium text-green-700">直接余额测试</span>
-        <button
-          onClick={() => refetchDirect()}
-          className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
-        >
-          刷新
-        </button>
-      </div>
-      <div className="text-xs space-y-1">
-        <div className="break-all">
-          <span className="text-gray-600">合约:</span> {tokenAddress}
-        </div>
-        <div className="break-all">
-          <span className="text-gray-600">用户:</span> {userAddress}
-        </div>
-        <div>
-          <span className="text-gray-600">原始余额:</span> {directBalance?.toString() || '无'}
-        </div>
-        <div>
-          <span className="text-gray-600">格式化余额:</span> {directBalance ? formatUnits(directBalance, 18) : '0'}
-        </div>
-        {directError && (
-          <div className="text-red-600 break-words">
-            错误: {directError.message}
           </div>
         )}
       </div>
