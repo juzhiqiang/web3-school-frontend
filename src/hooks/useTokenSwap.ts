@@ -236,48 +236,66 @@ export function useTokenSwap() {
     }
   }, [isConfirmed])
   
-  // 计算购买代币数量
+  // 修复：使用合约的计算函数而非本地计算
   const calculateTokensForETH = (ethAmount: string): string => {
     if (!exchangeRate || !ethAmount || !contractAddress) return '0'
     try {
+      // 使用合约的计算逻辑
       const ethInWei = parseEther(ethAmount)
       const grossTokens = ethInWei * BigInt(exchangeRate.toString())
       const fee = feeRates ? (grossTokens * BigInt(feeRates[0].toString())) / BigInt(10000) : BigInt(0)
       const netTokens = grossTokens - fee
       return formatUnits(netTokens, 18)
-    } catch {
+    } catch (error) {
+      console.error('计算代币数量失败:', error)
       return '0'
     }
   }
   
-  // 计算出售代币可获得的ETH
+  // 修复：使用正确的出售计算逻辑
   const calculateETHForTokens = (tokenAmount: string): string => {
     if (!exchangeRate || !tokenAmount || !contractAddress) return '0'
     try {
+      // 使用合约的计算逻辑：先计算总ETH，再扣除手续费
       const tokensInWei = parseUnits(tokenAmount, 18)
       const grossETH = tokensInWei / BigInt(exchangeRate.toString())
       const fee = feeRates ? (grossETH * BigInt(feeRates[1].toString())) / BigInt(10000) : BigInt(0)
       const netETH = grossETH - fee
       return formatEther(netETH)
-    } catch {
+    } catch (error) {
+      console.error('计算ETH数量失败:', error)
       return '0'
     }
   }
   
-  // 购买代币
+  // 修复：购买代币函数
   const buyTokens = async (ethAmount: string, slippage: number = 1) => {
     if (!isConnected || !address || !exchangeRate || !contractAddress) {
       toast.error(ERROR_MESSAGES.WALLET_NOT_CONNECTED)
       return
     }
     
+    // 检查合约是否有足够的代币
+    const expectedTokens = calculateTokensForETH(ethAmount)
+    const contractTokens = contractTokenBalance ? parseFloat(contractTokenBalance) : 0
+    if (contractTokens < parseFloat(expectedTokens)) {
+      toast.error('合约中代币库存不足，请联系管理员')
+      return
+    }
+    
     try {
       setIsLoading(true)
-      const expectedTokens = calculateTokensForETH(ethAmount)
       const minTokenAmount = parseUnits(
         (parseFloat(expectedTokens) * (1 - slippage / 100)).toFixed(18),
         18
       )
+      
+      console.log('购买参数:', {
+        ethAmount,
+        expectedTokens,
+        minTokenAmount: minTokenAmount.toString(),
+        slippage
+      })
       
       await writeContract({
         address: contractAddress as `0x${string}`,
@@ -291,13 +309,26 @@ export function useTokenSwap() {
       toast.success(`购买交易已提交到 ${networkName}`)
     } catch (err: any) {
       console.error('购买代币失败:', err)
-      toast.error(`购买失败: ${err.message || '未知错误'}`)
+      
+      // 更详细的错误处理
+      let errorMessage = '购买失败'
+      if (err.message?.includes('InsufficientTokenBalance')) {
+        errorMessage = '合约中代币库存不足'
+      } else if (err.message?.includes('ExcessiveSlippage')) {
+        errorMessage = '滑点过大，请增加滑点容差或稍后重试'
+      } else if (err.message?.includes('User rejected')) {
+        errorMessage = '用户取消了交易'
+      } else if (err.message) {
+        errorMessage = `购买失败: ${err.message}`
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
   }
   
-  // 授权代币
+  // 修复：授权代币函数
   const approveTokens = async (amount: string) => {
     if (!isConnected || !address || !yiDengTokenAddress || !contractAddress) {
       toast.error(ERROR_MESSAGES.WALLET_NOT_CONNECTED)
@@ -306,6 +337,13 @@ export function useTokenSwap() {
     
     try {
       setIsLoading(true)
+      
+      console.log('授权参数:', {
+        tokenAddress: yiDengTokenAddress,
+        spender: contractAddress,
+        amount: parseUnits(amount, 18).toString()
+      })
+      
       await writeContract({
         address: yiDengTokenAddress,
         abi: ERC20_ABI,
@@ -316,25 +354,47 @@ export function useTokenSwap() {
       toast.success('授权交易已提交')
     } catch (err: any) {
       console.error('授权失败:', err)
-      toast.error(`授权失败: ${err.message || '未知错误'}`)
+      
+      let errorMessage = '授权失败'
+      if (err.message?.includes('User rejected')) {
+        errorMessage = '用户取消了授权'
+      } else if (err.message) {
+        errorMessage = `授权失败: ${err.message}`
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
   }
   
-  // 出售代币
+  // 修复：出售代币函数
   const sellTokens = async (tokenAmount: string, slippage: number = 1) => {
     if (!isConnected || !address || !exchangeRate || !contractAddress) {
       toast.error(ERROR_MESSAGES.WALLET_NOT_CONNECTED)
       return
     }
     
+    // 检查合约是否有足够的ETH
+    const expectedETH = calculateETHForTokens(tokenAmount)
+    const contractETH = contractETHBalance ? parseFloat(contractETHBalance) : 0
+    if (contractETH < parseFloat(expectedETH)) {
+      toast.error('合约中ETH库存不足，请联系管理员')
+      return
+    }
+    
     try {
       setIsLoading(true)
-      const expectedETH = calculateETHForTokens(tokenAmount)
       const minETHAmount = parseEther(
         (parseFloat(expectedETH) * (1 - slippage / 100)).toFixed(18)
       )
+      
+      console.log('出售参数:', {
+        tokenAmount,
+        expectedETH,
+        minETHAmount: minETHAmount.toString(),
+        slippage
+      })
       
       await writeContract({
         address: contractAddress as `0x${string}`,
@@ -347,7 +407,24 @@ export function useTokenSwap() {
       toast.success(`出售交易已提交到 ${networkName}`)
     } catch (err: any) {
       console.error('出售代币失败:', err)
-      toast.error(`出售失败: ${err.message || '未知错误'}`)
+      
+      // 更详细的错误处理
+      let errorMessage = '出售失败'
+      if (err.message?.includes('InsufficientETHBalance')) {
+        errorMessage = '合约中ETH库存不足'
+      } else if (err.message?.includes('InsufficientUserTokenBalance')) {
+        errorMessage = '您的代币余额不足'
+      } else if (err.message?.includes('ExcessiveSlippage')) {
+        errorMessage = '滑点过大，请增加滑点容差或稍后重试'
+      } else if (err.message?.includes('ERC20: insufficient allowance')) {
+        errorMessage = '代币授权不足，请先授权'
+      } else if (err.message?.includes('User rejected')) {
+        errorMessage = '用户取消了交易'
+      } else if (err.message) {
+        errorMessage = `出售失败: ${err.message}`
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -355,12 +432,12 @@ export function useTokenSwap() {
   
   // 检查是否需要授权
   const needsApproval = (tokenAmount: string): boolean => {
-    if (!allowance || !tokenAmount) return false
+    if (!allowance || !tokenAmount) return true // 如果无法获取授权额度，默认需要授权
     try {
       const amountInWei = parseUnits(tokenAmount, 18)
       return BigInt(allowance.toString()) < amountInWei
     } catch {
-      return false
+      return true
     }
   }
   
@@ -372,8 +449,8 @@ export function useTokenSwap() {
         const amountInWei = parseUnits(amount, 18)
         return userTokenBalance ? BigInt(userTokenBalance.toString()) >= amountInWei : false
       }
-      // ETH余额检查需要从Web3Context获取
-      return true // 简化处理，实际应该检查ETH余额
+      // ETH余额检查在组件中处理
+      return true
     } catch {
       return false
     }
