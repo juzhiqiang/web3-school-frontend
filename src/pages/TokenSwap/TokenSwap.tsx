@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff, Wallet } from 'lucide-react'
+import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff, Wallet, DollarSign } from 'lucide-react'
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
 import { TOKEN_SWAP_CONFIG, ERROR_MESSAGES } from '../../config/tokenSwap'
@@ -516,26 +516,35 @@ function TokenSwap() {
           )}
         </div>
         
-        {/* 流动性池状态 */}
+        {/* 合约资金库存状态 */}
         {isContractAvailable && (
           <div className="mt-8 bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-green-500" />
-              <span>流动性池状态</span>
+              <DollarSign className="h-5 w-5 text-purple-500" />
+              <span>合约资金库存</span>
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-green-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-green-700 mb-1">
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-purple-700 mb-1">
                   {parseFloat(contractETHBalance).toFixed(4)}
                 </div>
-                <div className="text-sm text-gray-600">池中ETH</div>
+                <div className="text-sm text-gray-600">合约中ETH</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  用于购买YD
+                </div>
               </div>
-              <div className="bg-green-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-green-700 mb-1">
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-purple-700 mb-1">
                   {parseFloat(contractTokenBalance).toFixed(0)}
                 </div>
-                <div className="text-sm text-gray-600">池中YD</div>
+                <div className="text-sm text-gray-600">合约中YD</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  可购买数量
+                </div>
               </div>
+            </div>
+            <div className="mt-3 text-xs text-center text-gray-500">
+              💡 显示合约中可用于兑换的资金数量
             </div>
           </div>
         )}
@@ -549,8 +558,9 @@ function TokenSwap() {
               <ul className="text-sm text-yellow-700 space-y-1">
                 <li>• 交易需要支付网络gas费用</li>
                 <li>• 出售代币前需要先授权合约使用您的代币</li>
-                <li>• 价格可能因市场波动而变化，建议设置合适的滑点容差</li>
+                <li>• 兑换按固定汇率执行，设置滑点容差防止价格变动</li>
                 <li>• 交易一旦提交无法撤销，请仔细确认金额</li>
+                <li>• 请确保合约中有足够的资金进行兑换</li>
                 {isLocalNetwork && (
                   <li>• 当前使用本地测试网络，交易仅用于测试目的</li>
                 )}
