@@ -1,36 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther, formatEther } from 'viem';
+import { useAccount } from 'wagmi';
 import { PlusCircle, X, Upload, AlertCircle, CheckCircle, Coins } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CreateCourseFormData, CourseLesson } from '../../types/course';
-
-// 合约地址和ABI
-const CONTRACT_ADDRESS = '0x276Aa34b949Ea8C7b9817f21FA50cdd466211597';
-
-// 简化的合约ABI - 根据实际合约调整
-const CONTRACT_ABI = [
-  {
-    "inputs": [
-      { "name": "_title", "type": "string" },
-      { "name": "_description", "type": "string" },
-      { "name": "_price", "type": "uint256" },
-      { "name": "_duration", "type": "string" }
-    ],
-    "name": "createCourse",
-    "outputs": [{ "name": "courseId", "type": "uint256" }],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "rewardYiDengCoin",
-    "outputs": [],
-    "stateMutability": "nonpayable", 
-    "type": "function"
-  }
-] as const;
+import { useCourseContract } from '../../hooks/useCourseContract';
+import { YIDENG_REWARDS } from '../../config/contract';
 
 interface SuccessModalProps {
   isOpen: boolean;
@@ -39,7 +14,7 @@ interface SuccessModalProps {
   rewardAmount?: string;
 }
 
-const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, courseId, rewardAmount = "10" }) => {
+const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, courseId, rewardAmount = YIDENG_REWARDS.CREATE_COURSE }) => {
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -101,10 +76,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, courseId, 
 const CreateCourse: React.FC = () => {
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
-  const { writeContract, data: hash, error, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const { createCourse, isCreating, createError } = useCourseContract();
 
   // 表单状态
   const [formData, setFormData] = useState<CreateCourseFormData>({
@@ -121,7 +93,6 @@ const CreateCourse: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [currentTag, setCurrentTag] = useState('');
   const [createdCourseId, setCreatedCourseId] = useState<string>();
-  const [contractError, setContractError] = useState<string | null>(null);
 
   // 处理表单输入
   const handleInputChange = useCallback((field: keyof CreateCourseFormData, value: string | string[] | CourseLesson[]) => {
@@ -238,53 +209,20 @@ const CreateCourse: React.FC = () => {
     }
 
     try {
-      setContractError(null);
+      await createCourse(formData);
       
-      // 转换价格为wei (假设价格是以ETH计算)
-      const priceInWei = parseEther(formData.price);
-      
-      const loadingToast = toast.loading('正在创建课程...');
-      
-      // 调用智能合约
-      writeContract({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI,
-        functionName: 'createCourse',
-        args: [
-          formData.title,
-          formData.description,
-          priceInWei,
-          formData.duration,
-        ],
-      });
-
-      toast.dismiss(loadingToast);
-      
-    } catch (err: any) {
-      console.error('Create course error:', err);
-      const errorMessage = err?.message || '创建课程失败';
-      setContractError(errorMessage);
-      toast.error(errorMessage);
-    }
-  }, [isConnected, validateForm, formData, writeContract]);
-
-  // 监听交易成功
-  React.useEffect(() => {
-    if (isSuccess && hash) {
-      // 模拟从合约事件获取课程ID
+      // 模拟课程创建成功
       const courseId = Date.now().toString();
       setCreatedCourseId(courseId);
       
-      // 保存课程数据到本地存储或后端
+      // 保存课程数据到本地存储
       const courseData = {
         ...formData,
         id: courseId,
         instructorAddress: address,
         createdAt: new Date(),
-        transactionHash: hash,
       };
       
-      // 这里可以调用API保存课程数据
       localStorage.setItem(`course_${courseId}`, JSON.stringify(courseData));
       
       toast.success('课程创建成功！获得一灯币奖励！');
@@ -300,17 +238,11 @@ const CreateCourse: React.FC = () => {
         lessons: [],
         tags: [],
       });
+      
+    } catch (error) {
+      console.error('Create course failed:', error);
     }
-  }, [isSuccess, hash, formData, address]);
-
-  // 处理错误
-  React.useEffect(() => {
-    if (error) {
-      const errorMessage = error.message || '交易失败';
-      setContractError(errorMessage);
-      toast.error(errorMessage);
-    }
-  }, [error]);
+  }, [isConnected, validateForm, formData, createCourse, address]);
 
   if (!isConnected) {
     return (
@@ -333,7 +265,7 @@ const CreateCourse: React.FC = () => {
               <h1 className="text-2xl font-bold text-gray-900">创建新课程</h1>
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <Coins className="h-4 w-4 text-orange-500" />
-                <span>完成创建奖励 10 一灯币</span>
+                <span>完成创建奖励 {YIDENG_REWARDS.CREATE_COURSE} 一灯币</span>
               </div>
             </div>
           </div>
@@ -552,12 +484,12 @@ const CreateCourse: React.FC = () => {
             </div>
 
             {/* 错误显示 */}
-            {contractError && (
+            {createError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex items-center space-x-2 text-red-700">
                   <AlertCircle className="h-5 w-5" />
                   <span className="font-medium">创建失败:</span>
-                  <span>{contractError}</span>
+                  <span>{createError}</span>
                 </div>
               </div>
             )}
@@ -574,13 +506,13 @@ const CreateCourse: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={isPending || isConfirming}
+                disabled={isCreating}
                 className="px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                {isPending || isConfirming ? (
+                {isCreating ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    <span>{isPending ? '提交中...' : '确认中...'}</span>
+                    <span>创建中...</span>
                   </>
                 ) : (
                   <span>创建课程</span>
@@ -596,7 +528,7 @@ const CreateCourse: React.FC = () => {
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         courseId={createdCourseId}
-        rewardAmount="10"
+        rewardAmount={YIDENG_REWARDS.CREATE_COURSE}
       />
     </div>
   );
