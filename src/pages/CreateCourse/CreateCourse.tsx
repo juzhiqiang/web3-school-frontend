@@ -1,5 +1,3 @@
-        </div>
-
         {/* Contract Error Display */}
         {contractError && (
           <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
