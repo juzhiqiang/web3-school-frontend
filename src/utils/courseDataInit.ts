@@ -1,4 +1,4 @@
-import { Course } from '../types/courseTypes';
+import type { Course } from '../types/courseTypes';
 import { saveCourse, getAllCourses } from './courseStorage';
 
 // 示例课程数据
@@ -23,7 +23,7 @@ const sampleCourses: Course[] = [
     createdAt: new Date('2024-01-15'),
     lessons: [
       { 
-        id: 1, 
+        id: '1', 
         title: '区块链技术概述', 
         duration: '45分钟', 
         description: '了解区块链的基本概念、发展历史和核心特征',
@@ -31,7 +31,7 @@ const sampleCourses: Course[] = [
         isPreview: true 
       },
       { 
-        id: 2, 
+        id: '2', 
         title: '比特币的诞生与原理', 
         duration: '60分钟', 
         description: '深入了解比特币的创造背景、技术原理和运作机制',
@@ -39,7 +39,7 @@ const sampleCourses: Course[] = [
         isPreview: false 
       },
       { 
-        id: 3, 
+        id: '3', 
         title: '以太坊和智能合约', 
         duration: '75分钟', 
         description: '学习以太坊平台和智能合约的基础知识',
@@ -68,21 +68,21 @@ const sampleCourses: Course[] = [
     createdAt: new Date('2024-02-01'),
     lessons: [
       { 
-        id: 1, 
+        id: '1', 
         title: 'DeFi生态系统概述', 
         duration: '30分钟', 
         description: 'DeFi的发展历程和生态全景',
         isPreview: true 
       },
       { 
-        id: 2, 
+        id: '2', 
         title: 'Uniswap深度解析', 
         duration: '90分钟', 
         description: '自动化做市商原理和实践',
         isPreview: false 
       },
       { 
-        id: 3, 
+        id: '3', 
         title: 'Compound借贷协议', 
         duration: '75分钟', 
         description: '去中心化借贷的核心机制',
@@ -110,21 +110,21 @@ const sampleCourses: Course[] = [
     createdAt: new Date('2024-02-15'),
     lessons: [
       { 
-        id: 1, 
+        id: '1', 
         title: 'Solidity开发环境搭建', 
         duration: '20分钟', 
         description: '配置开发环境和工具',
         isPreview: true 
       },
       { 
-        id: 2, 
+        id: '2', 
         title: 'Solidity基础语法', 
         duration: '120分钟', 
         description: '学习Solidity编程语法',
         isPreview: false 
       },
       { 
-        id: 3, 
+        id: '3', 
         title: '智能合约设计模式', 
         duration: '90分钟', 
         description: '掌握常用的设计模式',
@@ -152,21 +152,21 @@ const sampleCourses: Course[] = [
     createdAt: new Date('2024-03-01'),
     lessons: [
       { 
-        id: 1, 
+        id: '1', 
         title: 'NFT技术基础', 
         duration: '25分钟', 
         description: 'NFT的技术原理和应用场景',
         isPreview: true 
       },
       { 
-        id: 2, 
+        id: '2', 
         title: 'NFT合约开发', 
         duration: '100分钟', 
         description: '开发自己的NFT智能合约',
         isPreview: false 
       },
       { 
-        id: 3, 
+        id: '3', 
         title: '项目启动与营销', 
         duration: '80分钟', 
         description: 'NFT项目的启动和推广策略',
@@ -194,21 +194,21 @@ const sampleCourses: Course[] = [
     createdAt: new Date('2024-03-10'),
     lessons: [
       { 
-        id: 1, 
+        id: '1', 
         title: 'Web3开发环境搭建', 
         duration: '30分钟', 
         description: '配置Web3开发环境和工具',
         isPreview: true 
       },
       { 
-        id: 2, 
+        id: '2', 
         title: 'MetaMask集成开发', 
         duration: '90分钟', 
         description: '实现钱包连接和交互',
         isPreview: false 
       },
       { 
-        id: 3, 
+        id: '3', 
         title: '智能合约前端集成', 
         duration: '110分钟', 
         description: '前端与智能合约的交互实现',
