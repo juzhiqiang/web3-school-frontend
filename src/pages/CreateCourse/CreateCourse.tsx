@@ -4,8 +4,26 @@ import { useAccount } from 'wagmi';
 import { PlusCircle, X, Upload, AlertCircle, CheckCircle, Coins } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCourseContract } from '../../hooks/useCourseContract';
-import { CreateCourseFormData, CourseLesson } from '../../types/courseTypes';
 import { YIDENG_REWARDS } from '../../config/contract';
+
+// 直接定义类型以避免导入问题
+interface CourseLesson {
+  id: string;
+  title: string;
+  videoUrl: string;
+  duration?: string;
+  description?: string;
+}
+
+interface CreateCourseFormData {
+  title: string;
+  description: string;
+  detailedDescription: string;
+  price: string;
+  duration: string;
+  lessons: CourseLesson[];
+  tags: string[];
+}
 
 interface SuccessModalProps {
   isOpen: boolean;
