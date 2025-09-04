@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { v4 as uuidv4 } from 'uuid';
@@ -8,6 +8,7 @@ import { useCourseContract } from '../../hooks/useCourseContract';
 import { YIDENG_REWARDS } from '../../config/contract';
 import { saveCourse } from '../../utils/courseStorage';
 import { validateYiDengAmount } from '../../config/yidengToken';
+import { recordCreateCourseReward } from '../../utils/rewardStorage';
 
 // 直接定义类型以避免导入问题
 interface CourseLesson {
@@ -97,7 +98,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, courseId, 
 const CreateCourse: React.FC = () => {
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
-  const { createCourse, isCreating, createError } = useCourseContract();
+  const { createCourse, isCreating, createError, isCreateSuccess } = useCourseContract();
 
   // 表单状态
   const [formData, setFormData] = useState<CreateCourseFormData>({
@@ -257,6 +258,30 @@ const CreateCourse: React.FC = () => {
       // 错误处理在useCourseContract中已经处理
     }
   }, [isConnected, validateForm, formData, createCourse, address]);
+
+  // 监听创建课程成功
+  useEffect(() => {
+    if (isCreateSuccess && createdCourseId && address) {
+      // 记录创建课程奖励到本地存储
+      const rewardRecord = recordCreateCourseReward(address, createdCourseId);
+      
+      toast.success('课程创建成功！获得一灯币奖励！');
+      setShowSuccessModal(true);
+      
+      // 重置表单
+      setFormData({
+        title: '',
+        description: '',
+        detailedDescription: '',
+        price: '',
+        duration: '',
+        lessons: [],
+        tags: [],
+      });
+
+      console.log('创建课程奖励已记录:', rewardRecord);
+    }
+  }, [isCreateSuccess, createdCourseId, address]);
 
   if (!isConnected) {
     return (

@@ -70,6 +70,7 @@ export interface UseCourseContractResult {
   createCourse: (courseData: CreateCourseFormData) => Promise<void>;
   isCreating: boolean;
   createError: string | null;
+  isCreateSuccess: boolean; // 添加创建成功状态
   
   // 获取课程
   getCourse: (courseId: string) => Promise<Course | null>;

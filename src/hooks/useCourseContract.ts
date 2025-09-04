@@ -212,7 +212,8 @@ export const useCourseContract = (): UseCourseContractResult => {
   // 监听交易状态
   React.useEffect(() => {
     if (isSuccess) {
-      toast.success('操作成功！', { id: 'create-course' });
+      // 不再显示通用成功消息，让组件自己处理
+      // 只处理非创建课程的操作
       toast.success('操作成功！', { id: 'purchase-course' });
       toast.success('提取成功！', { id: 'withdraw-earnings' });
     }

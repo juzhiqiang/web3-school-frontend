@@ -4,6 +4,7 @@ import { useWeb3 } from '../../contexts/Web3Context'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
 import { useTransactionHistory } from '../../hooks/useTransactionHistory'
 import TransactionHistory from '../../components/TransactionHistory/TransactionHistory'
+import RewardHistory from '../../components/RewardHistory/RewardHistory'
 import { ArrowRightLeft, Coins, TrendingUp, Wallet, Activity, DollarSign, BarChart3 } from 'lucide-react'
 
 function Financial() {
@@ -118,6 +119,11 @@ function Financial() {
             </div>
           </div>
         </div>
+      </div>
+      
+      {/* 奖励历史组件 */}
+      <div className="mb-8">
+        <RewardHistory />
       </div>
       
       {/* 交易历史组件 */}
