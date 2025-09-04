@@ -74,9 +74,35 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
   // 监听交易失败
   useEffect(() => {
     if (contractError && currentPurchase) {
-      console.error('交易失败:', contractError);
-      toast.error('购买交易失败，请重试');
-      setError(contractError.message);
+      console.error('购买交易失败:', contractError);
+      console.error('错误详情:', {
+        message: contractError.message,
+        cause: contractError.cause,
+        name: contractError.name
+      });
+      
+      let errorMessage = '购买交易失败';
+      
+      // 解析常见的错误类型
+      if (contractError.message) {
+        const message = contractError.message.toLowerCase();
+        if (message.includes('user rejected')) {
+          errorMessage = '用户拒绝了交易';
+        } else if (message.includes('insufficient funds')) {
+          errorMessage = '账户余额不足';
+        } else if (message.includes('gas')) {
+          errorMessage = '交易费不足或Gas估算失败';
+        } else if (message.includes('allowance')) {
+          errorMessage = '代币授权不足';
+        } else if (message.includes('transfer amount exceeds')) {
+          errorMessage = '转账金额超过余额';
+        } else {
+          errorMessage = `交易失败: ${contractError.message}`;
+        }
+      }
+      
+      toast.error(errorMessage);
+      setError(errorMessage);
       setCurrentPurchase(null);
     }
   }, [contractError, currentPurchase]);
