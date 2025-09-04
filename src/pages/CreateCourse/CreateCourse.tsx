@@ -1,3 +1,308 @@
+import React, { useState, useEffect } from 'react';
+import { useWeb3 } from '../../contexts/Web3Context';
+import { useYiDengToken } from '../../hooks/useYiDengToken';
+import type { CreateCourseFormData, CourseLesson } from '../../types/course';
+import { 
+  formatYiDengAmount, 
+  validateYiDengAmount, 
+  calculatePlatformFee, 
+  calculateCreatorRevenue,
+  YIDENG_TOKEN_CONFIG 
+} from '../../config/yidengToken';
+import RichTextEditor from '../../components/common/RichTextEditor';
+import LessonManager from '../../components/common/LessonManager';
+import TagInput from '../../components/common/TagInput';
+import { 
+  Save, Eye, AlertCircle, BookOpen, DollarSign, 
+  Users, Clock, Star, Coins, Wallet, Info 
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+
+function CreateCourse() {
+  const { isConnected, address, ydBalance } = useWeb3();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState<CreateCourseFormData>({
+    title: '',
+    description: '',
+    detailedDescription: '',
+    price: YIDENG_TOKEN_CONFIG.COURSE_PAYMENT.DEFAULT_PRICE,
+    duration: '',
+    lessons: [],
+    tags: []
+  });
+
+  const [thumbnail, setThumbnail] = useState<string>('');
+  const [priceError, setPriceError] = useState<string>('');
+
+  const totalSteps = 4;
+
+  const handleInputChange = (field: keyof CreateCourseFormData, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // 实时验证价格
+    if (field === 'price') {
+      const validation = validateYiDengAmount(value);
+      setPriceError(validation.error || '');
+    }
+  };
+
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 1:
+        return !!(formData.title && formData.description && formData.price && !priceError);
+      case 2:
+        return !!formData.detailedDescription;
+      case 3:
+        return formData.lessons.length > 0;
+      case 4:
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  const nextStep = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+    } else {
+      toast.error('请完整填写当前步骤的必填信息');
+    }
+  };
+
+  const prevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleSubmit = async () => {
+    if (!validateStep(currentStep)) {
+      toast.error('请完整填写所有必填信息');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // 创建课程数据，包含创建者地址
+      const courseData = {
+        ...formData,
+        instructorAddress: address,
+        platformFee: calculatePlatformFee(formData.price),
+        creatorRevenue: calculateCreatorRevenue(formData.price),
+      };
+
+      console.log('创建课程:', courseData);
+      
+      // TODO: 集成智能合约创建课程
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      toast.success('课程创建成功！');
+      
+      // 重置表单
+      setFormData({
+        title: '',
+        description: '',
+        detailedDescription: '',
+        price: YIDENG_TOKEN_CONFIG.COURSE_PAYMENT.DEFAULT_PRICE,
+        duration: '',
+        lessons: [],
+        tags: []
+      });
+      setCurrentStep(1);
+      setThumbnail('');
+      setPriceError('');
+      
+    } catch (error) {
+      console.error('创建课程失败:', error);
+      toast.error('创建课程失败，请重试');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('图片大小不能超过5MB');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setThumbnail(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-md mx-auto text-center bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <AlertCircle className="mx-auto h-12 w-12 text-yellow-600 mb-4" />
+          <h2 className="text-2xl font-bold mb-4">连接您的钱包</h2>
+          <p className="text-gray-600">请先连接您的钱包以创建课程。</p>
+        </div>
+      </div>
+    );
+  }
+
+  const renderTokenBalanceCard = () => (
+    <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-4 mb-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="bg-orange-100 p-2 rounded-full">
+            <Coins className="h-6 w-6 text-orange-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-900">一灯币余额</h3>
+            <p className="text-sm text-gray-600">用于课程定价和购买</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-orange-600">
+            {ydBalance ? formatYiDengAmount(ydBalance) : '0'} YD
+          </p>
+          <p className="text-xs text-gray-500">当前余额</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <BookOpen className="mx-auto h-12 w-12 text-blue-600 mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900">基本信息</h2>
+              <p className="text-gray-600">设置您课程的基础信息</p>
+            </div>
+
+            {renderTokenBalanceCard()}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  课程名称 *
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="例：Web3开发入门课程"
+                  required
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  课程简介 *
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="简要描述您的课程内容、学习目标和适用人群..."
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  课程价格 (一灯币) *
+                </label>
+                <div className="relative">
+                  <Coins className="absolute left-3 top-3 h-5 w-5 text-orange-500" />
+                  <input
+                    type="number"
+                    step="1"
+                    min={YIDENG_TOKEN_CONFIG.COURSE_PAYMENT.MIN_PRICE}
+                    max={YIDENG_TOKEN_CONFIG.COURSE_PAYMENT.MAX_PRICE}
+                    value={formData.price}
+                    onChange={(e) => handleInputChange('price', e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      priceError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    placeholder="100"
+                    required
+                  />
+                  <div className="absolute right-3 top-3 text-sm text-gray-500">YD</div>
+                </div>
+                
+                {priceError && (
+                  <p className="text-xs text-red-600 mt-1">{priceError}</p>
+                )}
+                
+                <div className="mt-2 text-xs text-gray-500 space-y-1">
+                  <p>• 平台手续费: {calculatePlatformFee(formData.price || '0')} YD (2.5%)</p>
+                  <p>• 您的收益: {calculateCreatorRevenue(formData.price || '0')} YD</p>
+                  <p>• 价格范围: {YIDENG_TOKEN_CONFIG.COURSE_PAYMENT.MIN_PRICE} - {formatYiDengAmount(YIDENG_TOKEN_CONFIG.COURSE_PAYMENT.MAX_PRICE)} YD</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  预计时长
+                </label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.duration}
+                    onChange={(e) => handleInputChange('duration', e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="例：10小时"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  课程缩略图
+                </label>
+                <div className="flex items-center space-x-4">
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleThumbnailUpload}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      支持 JPG、PNG、GIF 格式，最大 5MB
+                    </p>
+                  </div>
+                  {thumbnail && (
+                    <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                      <img 
+                        src={thumbnail} 
+                        alt="预览" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  课程标签
+                </label>
+                <TagInput
+                  tags={formData.tags}
+                  onTagsChange={(tags) => handleInputChange('tags', tags)}
+                  placeholder="添加相关标签..."
+                />
+              </div>
+            </div>
+
             {/* 一灯币支付说明 */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-start space-x-3">
