@@ -1,31 +1,43 @@
 // 课程相关的类型定义
 
 export interface CourseLesson {
-  id: string;
+  id: string | number;
   title: string;
-  videoUrl: string;
+  videoUrl?: string;
   duration?: string;
   description?: string;
+  isPreview?: boolean; // 是否为免费预览课程
 }
 
 export interface Course {
-  id?: string;
+  id: string;
   title: string;
   description: string;
-  detailedDescription: string;
+  detailedDescription?: string;
   price: string; // 价格单位：一灯币 (YiDeng Token)
   duration: string;
-  lessons: CourseLesson[];
+  lessons?: CourseLesson[];
   instructor?: string;
-  instructorAddress?: string;
+  instructorName?: string; // 讲师姓名
+  instructorAddress?: string; // 讲师钱包地址
+  instructorBio?: string; // 讲师简介
   tags?: string[];
   thumbnail?: string;
+  thumbnailHash?: string; // IPFS hash 或图片URL
   createdAt?: Date;
   updatedAt?: Date;
   totalRevenue?: string; // 总收益（一灯币）
   studentCount?: number;
+  enrollmentCount?: number; // 注册学生数量
   platformFee?: string; // 平台手续费（一灯币）
   creatorRevenue?: string; // 创作者实际收益（一灯币）
+  difficulty?: string; // 课程难度：初级、中级、高级
+  level?: string; // 兼容旧字段
+  rating?: number; // 课程评分
+  reviews?: number; // 评价数量
+  language?: string; // 授课语言
+  lastUpdated?: string; // 最后更新时间
+  isActive?: boolean; // 课程是否激活
 }
 
 export interface CreateCourseFormData {
@@ -37,6 +49,7 @@ export interface CreateCourseFormData {
   lessons: CourseLesson[];
   tags: string[];
   courseId?: string;
+  difficulty?: string;
 }
 
 // 课程购买相关类型
@@ -44,10 +57,11 @@ export interface CoursePurchase {
   courseId: string;
   buyerAddress: string;
   price: string; // 购买价格（一灯币）
-  platformFee: string; // 平台手续费（一灯币）
-  creatorRevenue: string; // 创作者收益（一灯币）
-  transactionHash: string;
+  platformFee?: string; // 平台手续费（一灯币）
+  creatorRevenue?: string; // 创作者收益（一灯币）
+  transactionHash?: string;
   purchaseDate: Date;
+  timestamp?: string;
 }
 
 // 课程收益统计
@@ -105,14 +119,4 @@ export type {
   CoursePurchase as Purchase,
   CourseEarnings as Earnings,
   UseCourseContractResult as ContractResult,
-};
-
-// 默认导出
-export default {
-  CourseLesson,
-  Course,
-  CreateCourseFormData,
-  CoursePurchase,
-  CourseEarnings,
-  UseCourseContractResult,
 };
