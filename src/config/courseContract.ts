@@ -894,11 +894,5 @@ export interface CourseContract {
   active: boolean;
 }
 
-// IPFS配置（用于存储课程内容）
-export const IPFS_CONFIG = {
-  GATEWAY: "https://ipfs.io/ipfs/",
-  // 可以使用Pinata或其他IPFS服务
-  API_ENDPOINT: "https://api.pinata.cloud/pinning/pinFileToIPFS"
-};
-
 export default COURSE_CONTRACT_CONFIG;
+dateupd

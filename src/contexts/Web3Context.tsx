@@ -56,18 +56,33 @@ export function Web3Provider({ children }: Web3ProviderProps) {
       if (typeof window !== 'undefined' && window.ethereum) {
         const provider = new ethers.BrowserProvider(window.ethereum)
         const tokenAddress = getYiDengTokenAddress(chainId)
+        
+        // 检查合约是否存在
+        const code = await provider.getCode(tokenAddress)
+        if (code === '0x') {
+          console.warn(`一灯币合约未部署在地址: ${tokenAddress}`)
+          setYdBalance('0')
+          return
+        }
+        
         const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider)
         
-        const balanceWei = await tokenContract.balanceOf(address)
-        const decimals = await tokenContract.decimals()
-        const balanceFormatted = ethers.formatUnits(balanceWei, decimals)
-        
-        setYdBalance(balanceFormatted)
-        console.log(`一灯币余额: ${balanceFormatted} YD`)
+        try {
+          const balanceWei = await tokenContract.balanceOf(address)
+          const decimals = await tokenContract.decimals()
+          const balanceFormatted = ethers.formatUnits(balanceWei, decimals)
+          
+          setYdBalance(balanceFormatted)
+          console.log(`一灯币余额: ${balanceFormatted} YD`)
+        } catch (contractError: any) {
+          console.error('调用一灯币合约失败:', contractError)
+          // 如果是合约调用失败，设置余额为0而不是null
+          setYdBalance('0')
+        }
       }
     } catch (error) {
       console.error('获取一灯币余额失败:', error)
-      setYdBalance(null)
+      setYdBalance('0') // 设置为0而不是null，避免UI显示问题
     }
   }
 

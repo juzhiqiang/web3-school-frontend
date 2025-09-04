@@ -9,6 +9,7 @@ import { YIDENG_REWARDS } from '../../config/contract';
 import { saveCourse } from '../../utils/courseStorage';
 import { validateYiDengAmount } from '../../config/yidengToken';
 import { recordCreateCourseReward } from '../../utils/rewardStorage';
+import ContractFundingWarning from '../../components/ContractFundingWarning/ContractFundingWarning';
 
 // 直接定义类型以避免导入问题
 interface CourseLesson {
@@ -307,6 +308,11 @@ const CreateCourse: React.FC = () => {
                 <span>完成创建奖励 {YIDENG_REWARDS.CREATE_COURSE} 一灯币</span>
               </div>
             </div>
+          </div>
+
+          {/* 合约资金警告 */}
+          <div className="px-6 pt-6">
+            <ContractFundingWarning />
           </div>
 
           <form className="p-6 space-y-6">
