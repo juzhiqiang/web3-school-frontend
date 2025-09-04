@@ -13,8 +13,36 @@ import {
   Coins,
   AlertCircle 
 } from 'lucide-react';
-import { Course } from '../../types/courseTypes';
 import { useMyCoursesContract, useCourseContract } from '../../hooks/useCourseContract';
+
+// 本地类型定义
+interface CourseLesson {
+  id: string;
+  title: string;
+  videoUrl: string;
+  duration?: string;
+  description?: string;
+}
+
+interface Course {
+  id?: string;
+  title: string;
+  description: string;
+  detailedDescription: string;
+  price: string;
+  duration: string;
+  lessons: CourseLesson[];
+  instructor?: string;
+  instructorAddress?: string;
+  tags?: string[];
+  thumbnail?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  totalRevenue?: string;
+  studentCount?: number;
+  platformFee?: string;
+  creatorRevenue?: string;
+}
 
 const MyCourses: React.FC = () => {
   const navigate = useNavigate();
