@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
+import { v4 as uuidv4 } from 'uuid';
 import { PlusCircle, X, Upload, AlertCircle, CheckCircle, Coins } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCourseContract } from '../../hooks/useCourseContract';
 import { YIDENG_REWARDS } from '../../config/contract';
+import { saveCourse } from '../../utils/courseStorage';
 
 // 直接定义类型以避免导入问题
 interface CourseLesson {
@@ -123,7 +125,7 @@ const CreateCourse: React.FC = () => {
   // 添加课程
   const addLesson = useCallback(() => {
     const newLesson: CourseLesson = {
-      id: Date.now().toString(),
+      id: uuidv4(),
       title: '',
       videoUrl: '',
       duration: '',
@@ -227,13 +229,10 @@ const CreateCourse: React.FC = () => {
     }
 
     try {
-      await createCourse(formData);
+      // 生成UUID作为课程ID
+      const courseId = uuidv4();
       
-      // 模拟课程创建成功
-      const courseId = Date.now().toString();
-      setCreatedCourseId(courseId);
-      
-      // 保存课程数据到本地存储
+      // 准备课程数据
       const courseData = {
         ...formData,
         id: courseId,
@@ -241,7 +240,13 @@ const CreateCourse: React.FC = () => {
         createdAt: new Date(),
       };
       
-      localStorage.setItem(`course_${courseId}`, JSON.stringify(courseData));
+      // 使用工具类保存到localStorage
+      saveCourse(courseData);
+      
+      // 将UUID提供给合约进行创建
+      await createCourse({ ...formData, courseId });
+      
+      setCreatedCourseId(courseId);
       
       toast.success('课程创建成功！获得一灯币奖励！');
       setShowSuccessModal(true);

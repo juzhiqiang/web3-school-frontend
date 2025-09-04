@@ -13,6 +13,7 @@ import type {
   CreateCourseFormData, 
   UseCourseContractResult 
 } from '../types/courseTypes';
+import { getCourse, getCreatorCourseIds, hasPurchased } from '../utils/courseStorage';
 
 export const useCourseContract = (): UseCourseContractResult => {
   const { address } = useAccount();
@@ -45,16 +46,18 @@ export const useCourseContract = (): UseCourseContractResult => {
         lessons: courseData.lessons,
         tags: courseData.tags,
         detailedDescription: courseData.detailedDescription,
+        courseId: courseData.courseId, // 包含UUID
       });
 
       const priceInWei = parseEther(courseData.price);
       
-      // 调用智能合约创建课程
+      // 调用智能合约创建课程，传递courseId作为参数
       writeContract({
         address: WEB3_SCHOOL_CONTRACT_ADDRESS,
         abi: WEB3_SCHOOL_CONTRACT_ABI,
         functionName: 'createCourse',
         args: [
+          courseData.courseId || '', // UUID作为第一个参数
           courseData.title,
           courseData.description,
           priceInWei,
@@ -76,19 +79,15 @@ export const useCourseContract = (): UseCourseContractResult => {
   }, [address, writeContract]);
 
   // 获取单个课程信息
-  const getCourse = useCallback(async (courseId: string): Promise<Course | null> => {
+  const getCourseInfo = useCallback(async (courseId: string): Promise<Course | null> => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // 这里应该调用智能合约的getCourse函数
-      // 由于wagmi的useReadContract需要在组件级别使用，这里模拟实现
-      const storedCourse = localStorage.getItem(`course_${courseId}`);
-      if (storedCourse) {
-        return JSON.parse(storedCourse);
-      }
+      // 使用存储工具类获取课程信息
+      const course = getCourse(courseId);
+      return course;
       
-      return null;
     } catch (err: any) {
       console.error('Get course error:', err);
       const errorMessage = err?.message || '获取课程信息失败';
@@ -100,24 +99,15 @@ export const useCourseContract = (): UseCourseContractResult => {
   }, []);
 
   // 获取创作者的课程列表
-  const getCreatorCourses = useCallback(async (creatorAddress: string): Promise<string[]> => {
+  const getCreatorCoursesInfo = useCallback(async (creatorAddress: string): Promise<string[]> => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // 从本地存储获取课程列表（实际应用中应该从合约或后端获取）
-      const allCourses: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key?.startsWith('course_')) {
-          const courseData = JSON.parse(localStorage.getItem(key) || '{}');
-          if (courseData.instructorAddress === creatorAddress) {
-            allCourses.push(courseData.id);
-          }
-        }
-      }
+      // 使用存储工具类获取创作者课程列表
+      const courseIds = getCreatorCourseIds(creatorAddress);
+      return courseIds;
       
-      return allCourses;
     } catch (err: any) {
       console.error('Get creator courses error:', err);
       const errorMessage = err?.message || '获取创作者课程失败';
@@ -166,9 +156,8 @@ export const useCourseContract = (): UseCourseContractResult => {
     if (!address) return false;
     
     try {
-      // 从本地存储检查购买记录（实际应用中应该从合约查询）
-      const purchaseKey = `purchase_${address}_${courseId}`;
-      return localStorage.getItem(purchaseKey) !== null;
+      // 使用存储工具类检查购买记录
+      return hasPurchased(courseId, address);
     } catch (err) {
       console.error('Check purchase status error:', err);
       return false;
@@ -263,8 +252,8 @@ export const useCourseContract = (): UseCourseContractResult => {
     isCreating: isCreating || isPending || isConfirming,
     createError,
     
-    getCourse,
-    getCreatorCourses,
+    getCourse: getCourseInfo,
+    getCreatorCourses: getCreatorCoursesInfo,
     
     purchaseCourse,
     isPurchasing: isPurchasing || isPending || isConfirming,

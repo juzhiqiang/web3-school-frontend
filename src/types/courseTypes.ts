@@ -36,6 +36,7 @@ export interface CreateCourseFormData {
   duration: string;
   lessons: CourseLesson[];
   tags: string[];
+  courseId?: string;
 }
 
 // 课程购买相关类型
