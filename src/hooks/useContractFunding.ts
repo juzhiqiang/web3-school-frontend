@@ -74,11 +74,19 @@ export const useContractFunding = () => {
     return (rewardAmount * 50).toString();
   };
 
-  // 检查是否为合约管理员（这里简化处理，实际应该查询合约owner）
+  // 查询合约所有者
+  const { data: contractOwner } = useReadContract({
+    address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+    abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
+    functionName: 'owner',
+    enabled: isConnected,
+  });
+
+  // 检查是否为合约管理员
   const isContractManager = (): boolean => {
-    // 这里可以添加具体的管理员地址检查逻辑
-    // 或者查询合约的owner函数
-    return true; // 暂时返回true，允许所有用户看到充值提醒
+    if (!address || !contractOwner) return false;
+    // 检查当前用户是否为合约所有者
+    return address.toLowerCase() === (contractOwner as string).toLowerCase();
   };
 
   return {

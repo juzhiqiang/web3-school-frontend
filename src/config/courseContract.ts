@@ -895,4 +895,3 @@ export interface CourseContract {
 }
 
 export default COURSE_CONTRACT_CONFIG;
-dateupd

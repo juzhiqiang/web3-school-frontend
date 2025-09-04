@@ -40,8 +40,8 @@ export const useCourseContract = (): UseCourseContractResult => {
       
       // 将一灯币价格转换为wei单位（18位小数）
       const priceInWei = parseEther(courseData.price);
-      // 创建课程奖励金额
-      const rewardAmountInWei = parseEther(YIDENG_REWARDS.CREATE_COURSE);
+      // 学员完成课程奖励金额（给学员的奖励，不是创建者奖励）
+      const courseCompletionRewardInWei = parseEther(YIDENG_REWARDS.COMPLETE_COURSE);
       
       // 调用智能合约创建课程
       writeContract({
@@ -52,7 +52,7 @@ export const useCourseContract = (): UseCourseContractResult => {
           courseData.courseId || '', // courseId (string)
           courseData.courseId || '', // uuid (string) - 使用相同的UUID
           courseData.title, // title (string)
-          rewardAmountInWei, // rewardAmount (uint256)
+          courseCompletionRewardInWei, // rewardAmount (uint256) - 给学员完成课程的奖励
           priceInWei, // price (uint256)
         ],
       });

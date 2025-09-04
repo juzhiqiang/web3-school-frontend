@@ -10,6 +10,9 @@ import { saveCourse } from '../../utils/courseStorage';
 import { validateYiDengAmount } from '../../config/yidengToken';
 import { recordCreateCourseReward } from '../../utils/rewardStorage';
 import ContractFundingWarning from '../../components/ContractFundingWarning/ContractFundingWarning';
+import { useRewardTracking } from '../../hooks/useRewardTracking';
+import RewardDebugPanel from '../../components/RewardDebugPanel/RewardDebugPanel';
+import ContractTestPanel from '../../components/ContractTestPanel/ContractTestPanel';
 
 // 直接定义类型以避免导入问题
 interface CourseLesson {
@@ -100,6 +103,7 @@ const CreateCourse: React.FC = () => {
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
   const { createCourse, isCreating, createError, isCreateSuccess } = useCourseContract();
+  const { recentRewards, isListening, contractTokenBalance } = useRewardTracking();
 
   // 表单状态
   const [formData, setFormData] = useState<CreateCourseFormData>({
@@ -260,15 +264,30 @@ const CreateCourse: React.FC = () => {
     }
   }, [isConnected, validateForm, formData, createCourse, address]);
 
-  // 监听创建课程成功
+  // 监听创建课程成功和奖励发放
   useEffect(() => {
     if (isCreateSuccess && createdCourseId && address) {
-      // 记录创建课程奖励到本地存储
-      const rewardRecord = recordCreateCourseReward(address, createdCourseId);
+      // 检查是否收到了奖励
+      const userReward = recentRewards.find(
+        reward => reward.instructor.toLowerCase() === address.toLowerCase() &&
+        reward.uuid === createdCourseId
+      );
       
-      toast.success('课程创建成功！获得一灯币奖励！');
-      setShowSuccessModal(true);
-      
+      if (userReward) {
+        // 收到了奖励，显示成功消息
+        toast.success(`课程创建成功！获得 ${userReward.rewardAmount} 一灯币奖励！`);
+        setShowSuccessModal(true);
+        
+        // 记录创建课程奖励到本地存储
+        const rewardRecord = recordCreateCourseReward(address, createdCourseId);
+        console.log('创建课程奖励已记录:', rewardRecord);
+      } else {
+        // 没有收到奖励，可能是合约余额不足或权限问题
+        toast.success('课程创建成功！');
+        toast.error('但是奖励发放失败，请检查合约余额或联系管理员');
+        setShowSuccessModal(true);
+      }
+
       // 重置表单
       setFormData({
         title: '',
@@ -279,10 +298,8 @@ const CreateCourse: React.FC = () => {
         lessons: [],
         tags: [],
       });
-
-      console.log('创建课程奖励已记录:', rewardRecord);
     }
-  }, [isCreateSuccess, createdCourseId, address]);
+  }, [isCreateSuccess, createdCourseId, address, recentRewards]);
 
   if (!isConnected) {
     return (
@@ -313,6 +330,8 @@ const CreateCourse: React.FC = () => {
           {/* 合约资金警告 */}
           <div className="px-6 pt-6">
             <ContractFundingWarning />
+            <RewardDebugPanel />
+            <ContractTestPanel />
           </div>
 
           <form className="p-6 space-y-6">
