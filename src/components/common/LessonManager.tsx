@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Edit3, Play, Clock } from 'lucide-react';
-import { CourseLesson } from '../../types/course';
+import type { CourseLesson } from '../../types/course';
 
 interface LessonManagerProps {
   lessons: CourseLesson[];
@@ -267,6 +267,17 @@ const EditLessonForm: React.FC<EditLessonFormProps> = ({
   const handleSave = () => {
     if (!editedLesson.title || !editedLesson.videoUrl) return;
     onSave(editedLesson);
+  };
+
+  const isValidVideoUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      return ['youtube.com', 'youtu.be', 'vimeo.com', 'wistia.com'].some(domain => 
+        urlObj.hostname.includes(domain)
+      ) || url.endsWith('.mp4') || url.endsWith('.webm');
+    } catch {
+      return false;
+    }
   };
 
   return (
