@@ -1,240 +1,360 @@
 import { useState, useCallback } from 'react';
-import { useAccount, useChainId } from 'wagmi';
-import { ethers } from 'ethers';
-import { COURSE_CONTRACT_CONFIG, type CourseContract } from '../config/courseContract';
-import { getYiDengTokenAddress } from '../config/yidengToken';
-import type { CreateCourseFormData, Course } from '../types/course';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseEther, formatEther } from 'viem';
 import toast from 'react-hot-toast';
+import { 
+  WEB3_SCHOOL_CONTRACT_ABI, 
+  WEB3_SCHOOL_CONTRACT_ADDRESS,
+  YIDENG_REWARDS 
+} from '../config/contract';
+import { Course, CreateCourseFormData } from '../types/course';
 
-// ERC-20 ABI for token operations
-const ERC20_ABI = [
-  'function transfer(address to, uint256 amount) external returns (bool)',
-  'function balanceOf(address owner) view returns (uint256)',
-  'function approve(address spender, uint256 amount) external returns (bool)'
-];
-
-export interface UseCourseContractReturn {
-  createCourse: (courseData: CreateCourseFormData) => Promise<boolean>;
-  getMyCourses: () => Promise<Course[]>;
-  getCourse: (courseId: string) => Promise<CourseContract | null>;
+export interface UseCourseContractResult {
+  // 状态
   isLoading: boolean;
   error: string | null;
+  
+  // 创建课程
+  createCourse: (courseData: CreateCourseFormData) => Promise<void>;
+  isCreating: boolean;
+  createError: string | null;
+  
+  // 获取课程
+  getCourse: (courseId: string) => Promise<Course | null>;
+  
+  // 获取创作者课程列表
+  getCreatorCourses: (creatorAddress: string) => Promise<string[]>;
+  
+  // 购买课程
+  purchaseCourse: (courseId: string, price: string) => Promise<void>;
+  isPurchasing: boolean;
+  
+  // 检查是否已购买
+  hasPurchasedCourse: (courseId: string) => Promise<boolean>;
+  
+  // 获取课程统计
+  getCourseStats: (courseId: string) => Promise<{
+    totalSales: string;
+    totalRevenue: string;
+    studentCount: string;
+  } | null>;
+  
+  // 提取收益
+  withdrawEarnings: (courseId: string) => Promise<void>;
+  isWithdrawing: boolean;
 }
 
-export function useCourseContract(): UseCourseContractReturn {
+export const useCourseContract = (): UseCourseContractResult => {
   const { address } = useAccount();
-  const chainId = useChainId();
+  const { writeContract, data: hash, error: contractError, isPending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  // 状态管理
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // 获取合约实例
-  const getContract = useCallback(async () => {
-    if (!address || !window.ethereum) {
-      throw new Error('钱包未连接');
-    }
-
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    
-    return new ethers.Contract(
-      COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS,
-      COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
-      signer
-    );
-  }, [address]);
-
-  // 获取一灯币合约实例
-  const getTokenContract = useCallback(async () => {
-    if (!address || !window.ethereum) {
-      throw new Error('钱包未连接');
-    }
-
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    const tokenAddress = getYiDengTokenAddress(chainId);
-    
-    return new ethers.Contract(tokenAddress, ERC20_ABI, signer);
-  }, [address, chainId]);
-
-  // 上传到IPFS（简化版本，实际项目中需要完整实现）
-  const uploadToIPFS = async (data: any): Promise<string> => {
-    try {
-      // 这里应该实现真正的IPFS上传
-      // 目前返回一个模拟的哈希
-      const dataString = JSON.stringify(data);
-      const hash = ethers.keccak256(ethers.toUtf8Bytes(dataString)).slice(0, 10);
-      console.log('模拟IPFS上传:', hash);
-      return hash;
-    } catch (error) {
-      console.error('IPFS上传失败:', error);
-      throw new Error('内容上传失败');
-    }
-  };
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   // 创建课程
-  const createCourse = useCallback(async (courseData: CreateCourseFormData): Promise<boolean> => {
+  const createCourse = useCallback(async (courseData: CreateCourseFormData) => {
     if (!address) {
-      setError('钱包未连接');
-      return false;
+      toast.error('请先连接钱包');
+      return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
     try {
-      const contract = await getContract();
+      setIsCreating(true);
+      setCreateError(null);
       
-      // 上传课程详细内容到IPFS
-      const ipfsHash = await uploadToIPFS({
-        detailedDescription: courseData.detailedDescription,
+      // 将课程数据转换为JSON字符串存储
+      const lessonsData = JSON.stringify({
         lessons: courseData.lessons,
-        thumbnail: null // 缩略图处理
-      });
-
-      // 将价格转换为wei（假设一灯币也是18位小数）
-      const priceWei = ethers.parseEther(courseData.price);
-
-      // 调用合约创建课程
-      console.log('创建课程参数:', {
-        title: courseData.title,
-        description: courseData.description,
-        detailedDescription: courseData.detailedDescription.slice(0, 500) + '...', // 截取前500字符
-        price: priceWei.toString(),
-        duration: courseData.duration,
         tags: courseData.tags,
-        thumbnailHash: ipfsHash
+        detailedDescription: courseData.detailedDescription,
       });
 
-      const tx = await contract.createCourse(
-        courseData.title,
-        courseData.description,
-        courseData.detailedDescription,
-        priceWei,
-        courseData.duration,
-        courseData.tags,
-        ipfsHash
-      );
+      const priceInWei = parseEther(courseData.price);
+      
+      // 调用智能合约创建课程
+      writeContract({
+        address: WEB3_SCHOOL_CONTRACT_ADDRESS,
+        abi: WEB3_SCHOOL_CONTRACT_ABI,
+        functionName: 'createCourse',
+        args: [
+          courseData.title,
+          courseData.description,
+          priceInWei,
+          courseData.duration,
+          lessonsData,
+        ],
+      });
 
-      console.log('交易已发送:', tx.hash);
       toast.loading('正在创建课程...', { id: 'create-course' });
+      
+    } catch (err: any) {
+      console.error('Create course error:', err);
+      const errorMessage = err?.message || '创建课程失败';
+      setCreateError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsCreating(false);
+    }
+  }, [address, writeContract]);
 
-      // 等待交易确认
-      const receipt = await tx.wait();
-      console.log('交易已确认:', receipt);
-
-      if (receipt.status === 1) {
-        // 发送一灯币奖励
-        await sendCreationReward();
-        
-        toast.success('课程创建成功！已获得1个一灯币奖励', { id: 'create-course' });
-        return true;
-      } else {
-        throw new Error('交易失败');
+  // 获取单个课程信息
+  const getCourse = useCallback(async (courseId: string): Promise<Course | null> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // 这里应该调用智能合约的getCourse函数
+      // 由于wagmi的useReadContract需要在组件级别使用，这里模拟实现
+      const storedCourse = localStorage.getItem(`course_${courseId}`);
+      if (storedCourse) {
+        return JSON.parse(storedCourse);
       }
-
-    } catch (error: any) {
-      console.error('创建课程失败:', error);
-      const errorMessage = error.message || '创建课程失败';
+      
+      return null;
+    } catch (err: any) {
+      console.error('Get course error:', err);
+      const errorMessage = err?.message || '获取课程信息失败';
       setError(errorMessage);
-      toast.error(errorMessage, { id: 'create-course' });
-      return false;
+      return null;
     } finally {
       setIsLoading(false);
     }
-  }, [address, getContract]);
+  }, []);
 
-  // 发送创建奖励（1个一灯币）
-  const sendCreationReward = async () => {
+  // 获取创作者的课程列表
+  const getCreatorCourses = useCallback(async (creatorAddress: string): Promise<string[]> => {
     try {
-      const tokenContract = await getTokenContract();
-      const rewardAmount = ethers.parseEther(COURSE_CONTRACT_CONFIG.CREATION_REWARD);
+      setIsLoading(true);
+      setError(null);
       
-      // 这里假设有一个管理员账户来发送奖励
-      // 实际项目中，奖励应该由合约自动发放或由后端服务发送
-      console.log(`发送创建奖励: ${COURSE_CONTRACT_CONFIG.CREATION_REWARD} YD 到 ${address}`);
-      
-      // 注意：这里需要有足够权限的账户来发送代币
-      // 在实际实现中，应该由智能合约自动处理奖励发放
-      
-    } catch (error) {
-      console.warn('发送创建奖励失败:', error);
-      // 不阻断主流程，只是警告
-    }
-  };
-
-  // 获取我的课程列表
-  const getMyCourses = useCallback(async (): Promise<Course[]> => {
-    if (!address) {
-      return [];
-    }
-
-    try {
-      const contract = await getContract();
-      const courseIds = await contract.getCoursesByCreator(address);
-      
-      const courses: Course[] = [];
-      for (const courseId of courseIds) {
-        try {
-          const courseData = await contract.getCourse(courseId);
-          
-          courses.push({
-            id: courseId.toString(),
-            title: courseData.title,
-            description: courseData.description,
-            detailedDescription: courseData.detailedDescription,
-            price: ethers.formatEther(courseData.price),
-            duration: courseData.duration,
-            instructor: '我',
-            instructorAddress: courseData.creator,
-            tags: courseData.tags,
-            createdAt: new Date(Number(courseData.createdAt) * 1000),
-            lessons: [] // 从IPFS加载
-          });
-        } catch (error) {
-          console.warn(`获取课程 ${courseId} 详情失败:`, error);
+      // 从本地存储获取课程列表（实际应用中应该从合约或后端获取）
+      const allCourses: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('course_')) {
+          const courseData = JSON.parse(localStorage.getItem(key) || '{}');
+          if (courseData.instructorAddress === creatorAddress) {
+            allCourses.push(courseData.id);
+          }
         }
       }
       
-      return courses;
-    } catch (error) {
-      console.error('获取我的课程失败:', error);
-      setError('获取课程列表失败');
+      return allCourses;
+    } catch (err: any) {
+      console.error('Get creator courses error:', err);
+      const errorMessage = err?.message || '获取创作者课程失败';
+      setError(errorMessage);
       return [];
+    } finally {
+      setIsLoading(false);
     }
-  }, [address, getContract]);
+  }, []);
 
-  // 获取单个课程信息
-  const getCourse = useCallback(async (courseId: string): Promise<CourseContract | null> => {
-    try {
-      const contract = await getContract();
-      const courseData = await contract.getCourse(courseId);
-      
-      return {
-        id: courseId,
-        title: courseData.title,
-        description: courseData.description,
-        detailedDescription: courseData.detailedDescription,
-        price: ethers.formatEther(courseData.price),
-        duration: courseData.duration,
-        creator: courseData.creator,
-        tags: courseData.tags,
-        thumbnailHash: courseData.thumbnailHash,
-        createdAt: courseData.createdAt.toString(),
-        active: courseData.active
-      };
-    } catch (error) {
-      console.error('获取课程详情失败:', error);
-      return null;
+  // 购买课程
+  const purchaseCourse = useCallback(async (courseId: string, price: string) => {
+    if (!address) {
+      toast.error('请先连接钱包');
+      return;
     }
-  }, [getContract]);
+
+    try {
+      setIsPurchasing(true);
+      setError(null);
+      
+      const priceInWei = parseEther(price);
+      
+      writeContract({
+        address: WEB3_SCHOOL_CONTRACT_ADDRESS,
+        abi: WEB3_SCHOOL_CONTRACT_ABI,
+        functionName: 'purchaseCourse',
+        args: [BigInt(courseId)],
+        value: priceInWei,
+      });
+
+      toast.loading('正在购买课程...', { id: 'purchase-course' });
+      
+    } catch (err: any) {
+      console.error('Purchase course error:', err);
+      const errorMessage = err?.message || '购买课程失败';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsPurchasing(false);
+    }
+  }, [address, writeContract]);
+
+  // 检查是否已购买课程
+  const hasPurchasedCourse = useCallback(async (courseId: string): Promise<boolean> => {
+    if (!address) return false;
+    
+    try {
+      // 从本地存储检查购买记录（实际应用中应该从合约查询）
+      const purchaseKey = `purchase_${address}_${courseId}`;
+      return localStorage.getItem(purchaseKey) !== null;
+    } catch (err) {
+      console.error('Check purchase status error:', err);
+      return false;
+    }
+  }, [address]);
+
+  // 获取课程统计
+  const getCourseStats = useCallback(async (courseId: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // 模拟从合约获取统计数据
+      const stats = {
+        totalSales: '0',
+        totalRevenue: '0',
+        studentCount: '0',
+      };
+      
+      return stats;
+    } catch (err: any) {
+      console.error('Get course stats error:', err);
+      const errorMessage = err?.message || '获取课程统计失败';
+      setError(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // 提取收益
+  const withdrawEarnings = useCallback(async (courseId: string) => {
+    if (!address) {
+      toast.error('请先连接钱包');
+      return;
+    }
+
+    try {
+      setIsWithdrawing(true);
+      setError(null);
+      
+      writeContract({
+        address: WEB3_SCHOOL_CONTRACT_ADDRESS,
+        abi: WEB3_SCHOOL_CONTRACT_ABI,
+        functionName: 'withdrawEarnings',
+        args: [BigInt(courseId)],
+      });
+
+      toast.loading('正在提取收益...', { id: 'withdraw-earnings' });
+      
+    } catch (err: any) {
+      console.error('Withdraw earnings error:', err);
+      const errorMessage = err?.message || '提取收益失败';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsWithdrawing(false);
+    }
+  }, [address, writeContract]);
+
+  // 监听交易状态
+  React.useEffect(() => {
+    if (isSuccess) {
+      toast.success('操作成功！', { id: 'create-course' });
+      toast.success('操作成功！', { id: 'purchase-course' });
+      toast.success('提取成功！', { id: 'withdraw-earnings' });
+    }
+  }, [isSuccess]);
+
+  React.useEffect(() => {
+    if (contractError) {
+      const errorMessage = contractError.message || '交易失败';
+      setError(errorMessage);
+      setCreateError(errorMessage);
+      toast.error(errorMessage, { 
+        id: 'create-course'
+      });
+      toast.error(errorMessage, { 
+        id: 'purchase-course' 
+      });
+      toast.error(errorMessage, { 
+        id: 'withdraw-earnings' 
+      });
+    }
+  }, [contractError]);
 
   return {
+    isLoading: isLoading || isPending || isConfirming,
+    error,
+    
     createCourse,
-    getMyCourses,
+    isCreating: isCreating || isPending || isConfirming,
+    createError,
+    
     getCourse,
-    isLoading,
-    error
+    getCreatorCourses,
+    
+    purchaseCourse,
+    isPurchasing: isPurchasing || isPending || isConfirming,
+    
+    hasPurchasedCourse,
+    getCourseStats,
+    
+    withdrawEarnings,
+    isWithdrawing: isWithdrawing || isPending || isConfirming,
   };
-}
+};
 
-export default useCourseContract;
+// 获取我的课程列表的Hook
+export const useMyCoursesContract = () => {
+  const { address } = useAccount();
+  
+  const { data: creatorCourseIds } = useReadContract({
+    address: WEB3_SCHOOL_CONTRACT_ADDRESS,
+    abi: WEB3_SCHOOL_CONTRACT_ABI,
+    functionName: 'getCreatorCourses',
+    args: address ? [address] : undefined,
+    enabled: !!address,
+  });
+
+  const { data: purchasedCourseIds } = useReadContract({
+    address: WEB3_SCHOOL_CONTRACT_ADDRESS,
+    abi: WEB3_SCHOOL_CONTRACT_ABI,
+    functionName: 'getUserPurchasedCourses',
+    args: address ? [address] : undefined,
+    enabled: !!address,
+  });
+
+  return {
+    creatorCourseIds: creatorCourseIds as bigint[] | undefined,
+    purchasedCourseIds: purchasedCourseIds as bigint[] | undefined,
+  };
+};
+
+// 课程详情的Hook
+export const useCourseDetails = (courseId: string | undefined) => {
+  const { data: courseData, isLoading, error } = useReadContract({
+    address: WEB3_SCHOOL_CONTRACT_ADDRESS,
+    abi: WEB3_SCHOOL_CONTRACT_ABI,
+    functionName: 'getCourse',
+    args: courseId ? [BigInt(courseId)] : undefined,
+    enabled: !!courseId,
+  });
+
+  const { data: courseStats } = useReadContract({
+    address: WEB3_SCHOOL_CONTRACT_ADDRESS,
+    abi: WEB3_SCHOOL_CONTRACT_ABI,
+    functionName: 'getCourseStats',
+    args: courseId ? [BigInt(courseId)] : undefined,
+    enabled: !!courseId,
+  });
+
+  return {
+    courseData,
+    courseStats,
+    isLoading,
+    error,
+  };
+};
