@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../../contexts/Web3Context';
-import { useYiDengToken } from '../../hooks/useYiDengToken';
 import type { CreateCourseFormData, CourseLesson } from '../../types/course';
 import { 
   formatYiDengAmount, 
@@ -13,13 +12,13 @@ import RichTextEditor from '../../components/common/RichTextEditor';
 import LessonManager from '../../components/common/LessonManager';
 import TagInput from '../../components/common/TagInput';
 import { 
-  Save, Eye, AlertCircle, BookOpen, DollarSign, 
-  Users, Clock, Star, Coins, Wallet, Info 
+  Save, Eye, AlertCircle, BookOpen, 
+  Users, Clock, Star, Coins, Info 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function CreateCourse() {
-  const { isConnected, address, ydBalance } = useWeb3();
+  const { isConnected, address } = useWeb3();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<CreateCourseFormData>({
@@ -150,28 +149,6 @@ function CreateCourse() {
     );
   }
 
-  const renderTokenBalanceCard = () => (
-    <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-4 mb-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="bg-orange-100 p-2 rounded-full">
-            <Coins className="h-6 w-6 text-orange-600" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">一灯币余额</h3>
-            <p className="text-sm text-gray-600">用于课程定价和购买</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-orange-600">
-            {ydBalance ? formatYiDengAmount(ydBalance) : '0'} YD
-          </p>
-          <p className="text-xs text-gray-500">当前余额</p>
-        </div>
-      </div>
-    </div>
-  );
-
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -182,8 +159,6 @@ function CreateCourse() {
               <h2 className="text-2xl font-bold text-gray-900">基本信息</h2>
               <p className="text-gray-600">设置您课程的基础信息</p>
             </div>
-
-            {renderTokenBalanceCard()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
@@ -631,21 +606,6 @@ function CreateCourse() {
           </div>
         </div>
       </div>
-
-      {/* Token Balance Warning */}
-      {ydBalance && parseFloat(ydBalance) === 0 && (
-        <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center space-x-3">
-            <Wallet className="h-5 w-5 text-yellow-600" />
-            <div>
-              <h4 className="font-medium text-yellow-900">一灯币余额不足</h4>
-              <p className="text-sm text-yellow-700">
-                您当前的一灯币余额为0。虽然创建课程免费，但学员需要一灯币来购买您的课程。
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
