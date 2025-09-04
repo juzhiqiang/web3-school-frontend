@@ -1,4 +1,5 @@
 // 课程相关的类型定义
+
 export interface CourseLesson {
   id: string;
   title: string;
@@ -93,3 +94,23 @@ export interface UseCourseContractResult {
   withdrawEarnings: (courseId: string) => Promise<void>;
   isWithdrawing: boolean;
 }
+
+// 导出所有类型的集合，方便统一导入
+export type {
+  CourseLesson as Lesson,
+  Course as CourseData,
+  CreateCourseFormData as FormData,
+  CoursePurchase as Purchase,
+  CourseEarnings as Earnings,
+  UseCourseContractResult as ContractResult,
+};
+
+// 默认导出
+export default {
+  CourseLesson,
+  Course,
+  CreateCourseFormData,
+  CoursePurchase,
+  CourseEarnings,
+  UseCourseContractResult,
+};
