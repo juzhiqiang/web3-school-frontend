@@ -5,6 +5,7 @@ import { getAllCourses } from '../../utils/courseStorage'
 import { initializeSampleCourses } from '../../utils/courseDataInit'
 import { useWeb3 } from '../../contexts/Web3Context'
 import type { Course } from '../../types/courseTypes'
+import toast from 'react-hot-toast'
 
 function CourseListing() {
   const [courses, setCourses] = useState<Course[]>([])
@@ -203,6 +204,12 @@ function CourseListing() {
                 <Link
                   to={`/course/${course.id}`}
                   className="px-6 py-2 rounded-md transition-colors font-medium bg-blue-600 text-white hover:bg-blue-700"
+                  onClick={(e) => {
+                    if (ydBalance && !canAfford(course.price)) {
+                      // 不阻止链接，让用户进入详情页查看购买流程
+                      toast.info(`注意：余额不足，需要 ${formatPrice(course.price)} YD`)
+                    }
+                  }}
                 >
                   查看详情
                 </Link>
