@@ -7,7 +7,45 @@ import {
   WEB3_SCHOOL_CONTRACT_ADDRESS,
   YIDENG_REWARDS 
 } from '../config/contract';
-import { Course, CreateCourseFormData } from '../types/course';
+
+// 导入类型定义
+export interface CourseLesson {
+  id: string;
+  title: string;
+  videoUrl: string;
+  duration?: string;
+  description?: string;
+}
+
+export interface Course {
+  id?: string;
+  title: string;
+  description: string;
+  detailedDescription: string;
+  price: string;
+  duration: string;
+  lessons: CourseLesson[];
+  instructor?: string;
+  instructorAddress?: string;
+  tags?: string[];
+  thumbnail?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  totalRevenue?: string;
+  studentCount?: number;
+  platformFee?: string;
+  creatorRevenue?: string;
+}
+
+export interface CreateCourseFormData {
+  title: string;
+  description: string;
+  detailedDescription: string;
+  price: string;
+  duration: string;
+  lessons: CourseLesson[];
+  tags: string[];
+}
 
 export interface UseCourseContractResult {
   // 状态
