@@ -13,7 +13,7 @@ export interface Course {
   title: string;
   description: string;
   detailedDescription: string;
-  price: string;
+  price: string; // 价格单位：一灯币 (YiDeng Token)
   duration: string;
   lessons: CourseLesson[];
   instructor?: string;
@@ -22,17 +22,17 @@ export interface Course {
   thumbnail?: string;
   createdAt?: Date;
   updatedAt?: Date;
-  totalRevenue?: string;
+  totalRevenue?: string; // 总收益（一灯币）
   studentCount?: number;
-  platformFee?: string;
-  creatorRevenue?: string;
+  platformFee?: string; // 平台手续费（一灯币）
+  creatorRevenue?: string; // 创作者实际收益（一灯币）
 }
 
 export interface CreateCourseFormData {
   title: string;
   description: string;
   detailedDescription: string;
-  price: string;
+  price: string; // 价格单位：一灯币 (YiDeng Token)
   duration: string;
   lessons: CourseLesson[];
   tags: string[];
@@ -43,9 +43,9 @@ export interface CreateCourseFormData {
 export interface CoursePurchase {
   courseId: string;
   buyerAddress: string;
-  price: string;
-  platformFee: string;
-  creatorRevenue: string;
+  price: string; // 购买价格（一灯币）
+  platformFee: string; // 平台手续费（一灯币）
+  creatorRevenue: string; // 创作者收益（一灯币）
   transactionHash: string;
   purchaseDate: Date;
 }
@@ -54,10 +54,10 @@ export interface CoursePurchase {
 export interface CourseEarnings {
   courseId: string;
   totalSales: number;
-  totalRevenue: string;
-  platformFeeCollected: string;
-  creatorEarnings: string;
-  averagePrice: string;
+  totalRevenue: string; // 总收益（一灯币）
+  platformFeeCollected: string; // 平台手续费收入（一灯币）
+  creatorEarnings: string; // 创作者收益（一灯币）
+  averagePrice: string; // 平均价格（一灯币）
 }
 
 // Hook 接口定义
@@ -92,7 +92,7 @@ export interface UseCourseContractResult {
   } | null>;
   
   // 提取收益
-  withdrawEarnings: (courseId: string) => Promise<void>;
+  withdrawEarnings: (amount: string) => Promise<void>; // 改为金额参数
   isWithdrawing: boolean;
 }
 

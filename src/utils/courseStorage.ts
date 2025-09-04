@@ -1,4 +1,4 @@
-import { Course } from '../types/courseTypes';
+import type { Course } from '../types/courseTypes';
 
 // 本地存储前缀
 const COURSE_PREFIX = 'course_';

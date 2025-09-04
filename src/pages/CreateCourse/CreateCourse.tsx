@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { useCourseContract } from '../../hooks/useCourseContract';
 import { YIDENG_REWARDS } from '../../config/contract';
 import { saveCourse } from '../../utils/courseStorage';
+import { validateYiDengAmount } from '../../config/yidengToken';
 
 // 直接定义类型以避免导入问题
 interface CourseLesson {
@@ -189,8 +190,10 @@ const CreateCourse: React.FC = () => {
       toast.error('请输入课程详细描述');
       return false;
     }
-    if (!formData.price || parseFloat(formData.price) <= 0) {
-      toast.error('请输入有效的课程价格');
+    // 验证一灯币价格
+    const priceValidation = validateYiDengAmount(formData.price);
+    if (!priceValidation.isValid) {
+      toast.error(priceValidation.error || '请输入有效的课程价格');
       return false;
     }
     if (!formData.duration.trim()) {
@@ -243,27 +246,15 @@ const CreateCourse: React.FC = () => {
       // 使用工具类保存到localStorage
       saveCourse(courseData);
       
-      // 将UUID提供给合约进行创建
-      await createCourse({ ...formData, courseId });
-      
+      // 设置课程ID，用于成功后显示
       setCreatedCourseId(courseId);
       
-      toast.success('课程创建成功！获得一灯币奖励！');
-      setShowSuccessModal(true);
-      
-      // 重置表单
-      setFormData({
-        title: '',
-        description: '',
-        detailedDescription: '',
-        price: '',
-        duration: '',
-        lessons: [],
-        tags: [],
-      });
+      // 将UUID提供给合约进行创建，不等待结果
+      await createCourse({ ...formData, courseId });
       
     } catch (error) {
       console.error('Create course failed:', error);
+      // 错误处理在useCourseContract中已经处理
     }
   }, [isConnected, validateForm, formData, createCourse, address]);
 
@@ -312,16 +303,18 @@ const CreateCourse: React.FC = () => {
 
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                  课程价格 (ETH) *
+                  课程价格 (一灯币) *
                 </label>
                 <input
                   type="number"
                   id="price"
-                  step="0.001"
+                  step="1"
+                  min="1"
+                  max="10000"
                   value={formData.price}
                   onChange={(e) => handleInputChange('price', e.target.value)}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.01"
+                  placeholder="100"
                 />
               </div>
 

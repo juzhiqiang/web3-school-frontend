@@ -2,11 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import toast from 'react-hot-toast';
-import { 
-  WEB3_SCHOOL_CONTRACT_ABI, 
-  WEB3_SCHOOL_CONTRACT_ADDRESS,
-  YIDENG_REWARDS 
-} from '../config/contract';
+import { COURSE_CONTRACT_CONFIG } from '../config/courseContract';
+import { YIDENG_REWARDS } from '../config/contract';
 import type { 
   Course, 
   CourseLesson, 
@@ -41,28 +38,22 @@ export const useCourseContract = (): UseCourseContractResult => {
       setIsCreating(true);
       setCreateError(null);
       
-      // 将课程数据转换为JSON字符串存储
-      const lessonsData = JSON.stringify({
-        lessons: courseData.lessons,
-        tags: courseData.tags,
-        detailedDescription: courseData.detailedDescription,
-        courseId: courseData.courseId, // 包含UUID
-      });
-
+      // 将一灯币价格转换为wei单位（18位小数）
       const priceInWei = parseEther(courseData.price);
+      // 创建课程奖励金额
+      const rewardAmountInWei = parseEther(YIDENG_REWARDS.CREATE_COURSE);
       
-      // 调用智能合约创建课程，传递courseId作为参数
+      // 调用智能合约创建课程
       writeContract({
-        address: WEB3_SCHOOL_CONTRACT_ADDRESS,
-        abi: WEB3_SCHOOL_CONTRACT_ABI,
+        address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+        abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
         functionName: 'createCourse',
         args: [
-          courseData.courseId || '', // UUID作为第一个参数
-          courseData.title,
-          courseData.description,
-          priceInWei,
-          courseData.duration,
-          lessonsData,
+          courseData.courseId || '', // courseId (string)
+          courseData.courseId || '', // uuid (string) - 使用相同的UUID
+          courseData.title, // title (string)
+          rewardAmountInWei, // rewardAmount (uint256)
+          priceInWei, // price (uint256)
         ],
       });
 
@@ -118,7 +109,7 @@ export const useCourseContract = (): UseCourseContractResult => {
     }
   }, []);
 
-  // 购买课程
+  // 购买课程（注册课程）
   const purchaseCourse = useCallback(async (courseId: string, price: string) => {
     if (!address) {
       toast.error('请先连接钱包');
@@ -129,14 +120,12 @@ export const useCourseContract = (): UseCourseContractResult => {
       setIsPurchasing(true);
       setError(null);
       
-      const priceInWei = parseEther(price);
-      
+      // 新合约中使用enrollInCourse函数
       writeContract({
-        address: WEB3_SCHOOL_CONTRACT_ADDRESS,
-        abi: WEB3_SCHOOL_CONTRACT_ABI,
-        functionName: 'purchaseCourse',
-        args: [BigInt(courseId)],
-        value: priceInWei,
+        address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+        abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
+        functionName: 'enrollInCourse',
+        args: [courseId], // 使用string类型的courseId
       });
 
       toast.loading('正在购买课程...', { id: 'purchase-course' });
@@ -188,8 +177,8 @@ export const useCourseContract = (): UseCourseContractResult => {
     }
   }, []);
 
-  // 提取收益
-  const withdrawEarnings = useCallback(async (courseId: string) => {
+  // 提取收益（新合约中使用withdrawTokens）
+  const withdrawEarnings = useCallback(async (amount: string) => { // 改为金额参数
     if (!address) {
       toast.error('请先连接钱包');
       return;
@@ -199,11 +188,13 @@ export const useCourseContract = (): UseCourseContractResult => {
       setIsWithdrawing(true);
       setError(null);
       
+      const amountInWei = parseEther(amount);
+      
       writeContract({
-        address: WEB3_SCHOOL_CONTRACT_ADDRESS,
-        abi: WEB3_SCHOOL_CONTRACT_ABI,
-        functionName: 'withdrawEarnings',
-        args: [BigInt(courseId)],
+        address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+        abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
+        functionName: 'withdrawTokens',
+        args: [amountInWei], // 使用金额而不是courseId
       });
 
       toast.loading('正在提取收益...', { id: 'withdraw-earnings' });
@@ -251,6 +242,7 @@ export const useCourseContract = (): UseCourseContractResult => {
     createCourse,
     isCreating: isCreating || isPending || isConfirming,
     createError,
+    isCreateSuccess: isSuccess, // 添加创建成功状态
     
     getCourse: getCourseInfo,
     getCreatorCourses: getCreatorCoursesInfo,
@@ -271,42 +263,42 @@ export const useMyCoursesContract = () => {
   const { address } = useAccount();
   
   const { data: creatorCourseIds } = useReadContract({
-    address: WEB3_SCHOOL_CONTRACT_ADDRESS,
-    abi: WEB3_SCHOOL_CONTRACT_ABI,
-    functionName: 'getCreatorCourses',
+    address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+    abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
+    functionName: 'getAuthorCourses', // 新合约中的函数名
     args: address ? [address] : undefined,
     enabled: !!address,
   });
 
   const { data: purchasedCourseIds } = useReadContract({
-    address: WEB3_SCHOOL_CONTRACT_ADDRESS,
-    abi: WEB3_SCHOOL_CONTRACT_ABI,
-    functionName: 'getUserPurchasedCourses',
+    address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+    abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
+    functionName: 'getStudentCourses', // 新合约中的函数名
     args: address ? [address] : undefined,
     enabled: !!address,
   });
 
   return {
-    creatorCourseIds: creatorCourseIds as bigint[] | undefined,
-    purchasedCourseIds: purchasedCourseIds as bigint[] | undefined,
+    creatorCourseIds: creatorCourseIds as string[] | undefined, // 新合约返回string[]
+    purchasedCourseIds: purchasedCourseIds as string[] | undefined, // 新合约返回string[]
   };
 };
 
 // 课程详情的Hook
 export const useCourseDetails = (courseId: string | undefined) => {
   const { data: courseData, isLoading, error } = useReadContract({
-    address: WEB3_SCHOOL_CONTRACT_ADDRESS,
-    abi: WEB3_SCHOOL_CONTRACT_ABI,
+    address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+    abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'getCourse',
-    args: courseId ? [BigInt(courseId)] : undefined,
+    args: courseId ? [courseId] : undefined, // 使用string类型，不是BigInt
     enabled: !!courseId,
   });
 
   const { data: courseStats } = useReadContract({
-    address: WEB3_SCHOOL_CONTRACT_ADDRESS,
-    abi: WEB3_SCHOOL_CONTRACT_ABI,
+    address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+    abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'getCourseStats',
-    args: courseId ? [BigInt(courseId)] : undefined,
+    args: courseId ? [courseId] : undefined, // 使用string类型，不是BigInt
     enabled: !!courseId,
   });
 

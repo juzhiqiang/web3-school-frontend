@@ -20,9 +20,9 @@ export const YIDENG_TOKEN_CONFIG = {
 
   // 合约地址（从 tokenSwap 配置继承）
   CONTRACT_ADDRESSES: {
-    1: "0x150Bd46b19B8C5fb27cB53924000998bAd363e72",
-    11155111: "0x150Bd46b19B8C5fb27cB53924000998bAd363e72", 
-    1337: "0x150Bd46b19B8C5fb27cB53924000998bAd363e72",
+    1: "0xf7E75F4fa37b59b5ee1b06de51b0d55f8A0f99d3",
+    11155111: "0xf7E75F4fa37b59b5ee1b06de51b0d55f8A0f99d3", 
+    1337: "0xf7E75F4fa37b59b5ee1b06de51b0d55f8A0f99d3",
   } as const,
 
   // 课程合约地址（新增，专门用于课程购买）
