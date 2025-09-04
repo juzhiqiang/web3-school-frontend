@@ -110,10 +110,10 @@ export const useCourseContract = (): UseCourseContractResult => {
   }, []);
 
   // 购买课程（注册课程）
-  const purchaseCourse = useCallback(async (courseId: string, price: string) => {
+  const purchaseCourse = useCallback(async (courseId: string, price: string): Promise<{ success: boolean; hash?: string }> => {
     if (!address) {
       toast.error('请先连接钱包');
-      return;
+      return { success: false };
     }
 
     try {
@@ -128,13 +128,15 @@ export const useCourseContract = (): UseCourseContractResult => {
         args: [courseId], // 使用string类型的courseId
       });
 
-      toast.loading('正在购买课程...', { id: 'purchase-course' });
+      // 返回成功状态，hash将通过wagmi的机制获取
+      return { success: true, hash: undefined }; // hash会在writeContract成功后通过wagmi状态获取
       
     } catch (err: any) {
       console.error('Purchase course error:', err);
       const errorMessage = err?.message || '购买课程失败';
       setError(errorMessage);
       toast.error(errorMessage);
+      return { success: false };
     } finally {
       setIsPurchasing(false);
     }
@@ -250,6 +252,9 @@ export const useCourseContract = (): UseCourseContractResult => {
     
     purchaseCourse,
     isPurchasing: isPurchasing || isPending || isConfirming,
+    purchaseHash: hash, // 暴露交易哈希
+    isPurchaseConfirming: isConfirming, // 暴露交易确认状态
+    isPurchaseSuccess: isSuccess, // 暴露交易成功状态
     
     hasPurchasedCourse,
     getCourseStats,

@@ -1,9 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useYiDengToken } from './useYiDengToken';
-import { useCourseContract } from './useCourseContract';
+import { useTransactionPurchase } from './useTransactionPurchase';
 import { getCourseContractAddress } from '../config/yidengToken';
-import { recordPurchase } from '../utils/courseStorage';
 import { useWeb3 } from '../contexts/Web3Context';
 import toast from 'react-hot-toast';
 
@@ -14,16 +13,16 @@ export interface UseCoursePurchaseResult {
   purchaseCourse: (courseId: string, price: string) => Promise<boolean>;
   checkAllowance: (price: string) => Promise<boolean>;
   needsApproval: boolean;
+  approveCourse: (price: string) => Promise<boolean>; // 新增单独授权功能
 }
 
 export const useCoursePurchase = (): UseCoursePurchaseResult => {
   const { address } = useAccount();
   const chainId = useChainId();
-  const { ydBalance, refetchYdBalance } = useWeb3();
+  const { ydBalance } = useWeb3();
   const { approveToken, checkAllowance: checkTokenAllowance } = useYiDengToken();
-  const { purchaseCourse: enrollInCourse } = useCourseContract();
+  const { purchaseCourseWithVerification, isPurchasing: isTransactionPurchasing, error: purchaseError } = useTransactionPurchase();
 
-  const [isPurchasing, setIsPurchasing] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsApproval, setNeedsApproval] = useState(false);
@@ -49,7 +48,46 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
     }
   }, [checkTokenAllowance, chainId]);
 
-  // 购买课程（完整流程：检查余额 -> 授权 -> 购买 -> 记录）
+  // 单独的授权功能
+  const approveCourse = useCallback(async (price: string): Promise<boolean> => {
+    if (!address) {
+      toast.error('请先连接钱包');
+      return false;
+    }
+
+    setError(null);
+    setIsApproving(true);
+
+    try {
+      const courseContractAddress = getCourseContractAddress(chainId);
+      toast(`正在授权 ${price} YD 给课程合约...`, { 
+        duration: 3000,
+        icon: 'ℹ️'
+      });
+      
+      const approveSuccess = await approveToken(courseContractAddress, price);
+      
+      if (approveSuccess) {
+        toast.success('授权成功！现在可以购买课程了');
+        // 重新检查授权状态
+        await checkAllowance(price);
+        return true;
+      } else {
+        toast.error('授权失败，请重试');
+        return false;
+      }
+    } catch (err: any) {
+      console.error('授权失败:', err);
+      const errorMessage = err?.message || '授权失败，请重试';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      return false;
+    } finally {
+      setIsApproving(false);
+    }
+  }, [address, chainId, approveToken, checkAllowance]);
+
+  // 购买课程（使用交易验证机制）
   const purchaseCourse = useCallback(async (courseId: string, price: string): Promise<boolean> => {
     if (!address) {
       toast.error('请先连接钱包');
@@ -57,7 +95,6 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
     }
 
     setError(null);
-    setIsPurchasing(true);
 
     try {
       // 1. 检查一灯币余额是否足够
@@ -69,7 +106,6 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
       if (ydBalanceNum < priceNum) {
         const shortfall = priceNum - ydBalanceNum;
         toast.error(`余额不足，还需要 ${shortfall.toFixed(2)} YD`);
-        setIsPurchasing(false);
         return false;
       }
 
@@ -77,51 +113,12 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
       const hasEnoughAllowance = await checkAllowance(price);
       
       if (!hasEnoughAllowance) {
-        // 3. 如果授权不够，先进行授权
-        setIsApproving(true);
-        const courseContractAddress = getCourseContractAddress(chainId);
-        
-        toast.info(`正在授权 ${price} YD 给课程合约...`, { duration: 3000 });
-        
-        const approveSuccess = await approveToken(courseContractAddress, price);
-        setIsApproving(false);
-        
-        if (!approveSuccess) {
-          setIsPurchasing(false);
-          return false;
-        }
-        
-        toast.success('授权成功！正在执行购买...');
-        // 授权成功后等待一小段时间确保授权生效
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-
-      // 4. 执行购买
-      toast.loading('正在购买课程...', { id: 'purchasing' });
-      
-      try {
-        await enrollInCourse(courseId, price);
-        
-        // 5. 购买成功后记录到本地缓存
-        recordPurchase(courseId, address, {
-          price,
-          transactionHash: null, // 可以从合约事件中获取
-          timestamp: new Date().toISOString()
-        });
-
-        // 6. 刷新余额
-        setTimeout(() => {
-          refetchYdBalance();
-        }, 3000);
-        
-        toast.success('课程购买成功！现在可以学习了 🎉', { id: 'purchasing', duration: 5000 });
-        return true;
-        
-      } catch (purchaseError) {
-        console.error('购买失败:', purchaseError);
-        toast.error('购买失败，请重试', { id: 'purchasing' });
+        toast.error('授权额度不足，请先进行授权');
         return false;
       }
+
+      // 3. 使用新的交易验证购买机制
+      return await purchaseCourseWithVerification(courseId, price);
       
     } catch (err: any) {
       console.error('购买课程流程失败:', err);
@@ -129,27 +126,22 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
       setError(errorMessage);
       toast.error(errorMessage);
       return false;
-    } finally {
-      setIsPurchasing(false);
-      setIsApproving(false);
     }
   }, [
     address, 
     ydBalance, 
-    chainId,
     checkAllowance, 
-    approveToken, 
-    enrollInCourse, 
-    refetchYdBalance
+    purchaseCourseWithVerification
   ]);
 
   return {
-    isPurchasing,
+    isPurchasing: isTransactionPurchasing,
     isApproving,
-    error,
+    error: error || purchaseError,
     purchaseCourse,
     checkAllowance,
     needsApproval,
+    approveCourse, // 单独授权功能
   };
 };
 

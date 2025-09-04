@@ -19,6 +19,7 @@ interface Web3ContextType {
   userProfile: UserProfile | null
   refetchBalance: () => void
   refetchYdBalance: () => void  // 刷新一灯币余额
+  addTokenToWallet: () => Promise<boolean>  // 添加代币到钱包
 }
 
 const Web3Context = createContext<Web3ContextType | null>(null)
@@ -102,6 +103,42 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     await fetchYdBalance()
   }
 
+  // 添加一灯币到钱包
+  const addTokenToWallet = async (): Promise<boolean> => {
+    if (!window.ethereum || !chainId) {
+      console.error('钱包未连接或链ID不可用')
+      return false
+    }
+
+    try {
+      const tokenAddress = getYiDengTokenAddress(chainId)
+      
+      const success = await window.ethereum.request({
+        method: 'wallet_watchAsset',
+        params: {
+          type: 'ERC20',
+          options: {
+            address: tokenAddress,
+            symbol: 'YD',
+            decimals: 18,
+            image: '', // 可以添加代币图标URL
+          },
+        },
+      })
+
+      if (success) {
+        console.log('✅ 一灯币已添加到钱包')
+        return true
+      } else {
+        console.log('❌ 用户取消添加代币到钱包')
+        return false
+      }
+    } catch (error) {
+      console.error('添加代币到钱包失败:', error)
+      return false
+    }
+  }
+
   useEffect(() => {
     if (balanceData) {
       setBalance(formatEther(balanceData.value))
@@ -136,6 +173,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     userProfile,
     refetchBalance,
     refetchYdBalance,
+    addTokenToWallet,
   }
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>

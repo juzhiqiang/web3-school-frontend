@@ -3,11 +3,11 @@ export const TOKEN_SWAP_CONFIG = {
   // 不同网络的合约地址
   CONTRACT_ADDRESSES: {
     // 主网
-    1: "0xf72E6870E7F198954c64c40E3ECa76BAE714256D",
+    1: "0xf7E75F4fa37b59b5ee1b06de51b0d55f8A0f99d3",
     // Sepolia测试网
-    11155111: "0xf72E6870E7F198954c64c40E3ECa76BAE714256D",
+    11155111: "0xf7E75F4fa37b59b5ee1b06de51b0d55f8A0f99d3",
     // Ganache本地网络
-    1337: "0xf72E6870E7F198954c64c40E3ECa76BAE714256D",
+    1337: "0xf7E75F4fa37b59b5ee1b06de51b0d55f8A0f99d3",
   } as const,
 
   // 代币配置

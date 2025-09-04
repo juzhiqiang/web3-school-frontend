@@ -12,13 +12,15 @@ function CourseListing() {
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [purchasingCourse, setPurchasingCourse] = useState<string | null>(null)
-  const { isConnected, address, ydBalance } = useWeb3()
+  const [approvingCourse, setApprovingCourse] = useState<string | null>(null)
+  const { isConnected, address, ydBalance, addTokenToWallet } = useWeb3()
   const { 
     isPurchasing, 
     isApproving, 
     purchaseCourse, 
     checkAllowance, 
-    needsApproval 
+    needsApproval,
+    approveCourse
   } = useCoursePurchase()
 
   // 从本地缓存加载课程数据
@@ -43,6 +45,19 @@ function CourseListing() {
 
     loadCourses()
   }, [])
+
+  // 检查特定课程的授权状态
+  useEffect(() => {
+    const checkCourseAllowances = async () => {
+      if (!isConnected || !address || courses.length === 0) return
+      
+      for (const course of courses) {
+        await checkAllowance(course.price)
+      }
+    }
+    
+    checkCourseAllowances()
+  }, [courses, isConnected, address, checkAllowance])
 
   // 检查用户是否已购买课程
   const hasUserPurchased = (courseId: string) => {
@@ -92,7 +107,13 @@ function CourseListing() {
       return
     }
 
-    // 开始购买流程
+    // 如果需要授权，提示用户先点击授权按钮
+    if (needsApproval) {
+      toast.error('请先点击授权按钮授权一灯币')
+      return
+    }
+
+    // 开始购买流程（已授权）
     setPurchasingCourse(course.id)
     
     try {
@@ -122,8 +143,11 @@ function CourseListing() {
     }
     if (!canAfford(course.price)) return '余额不足'
     
-    // 检查是否需要授权
-    return needsApproval ? '授权并购买' : '立即购买'
+    // 如果需要授权，显示"请先授权"
+    if (needsApproval) return '请先授权'
+    
+    // 已授权，可以直接购买
+    return '立即购买'
   }
 
   const getButtonStyle = (course: Course) => {
@@ -140,6 +164,40 @@ function CourseListing() {
     }
     
     return 'bg-blue-600 text-white hover:bg-blue-700'
+  }
+
+  const handleAddToWallet = async () => {
+    const success = await addTokenToWallet()
+    if (success) {
+      toast.success('一灯币已添加到钱包！')
+    } else {
+      toast.error('添加代币到钱包失败')
+    }
+  }
+
+  // 处理单独的授权操作
+  const handleApprove = async (course: Course, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!isConnected) {
+      toast.error('请先连接钱包')
+      return
+    }
+
+    setApprovingCourse(course.id)
+    
+    try {
+      const success = await approveCourse(course.price)
+      if (success) {
+        // 重新检查授权状态
+        await checkAllowance(course.price)
+      }
+    } catch (error) {
+      console.error('授权失败:', error)
+    } finally {
+      setApprovingCourse(null)
+    }
   }
 
   if (isLoading) {
@@ -165,11 +223,20 @@ function CourseListing() {
         
         {/* 显示用户的一灯币余额 */}
         {ydBalance && (
-          <div className="mt-4 inline-flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-full">
-            <Coins className="w-5 h-5 text-blue-600" />
-            <span className="text-blue-800 font-medium">
-              余额: {formatPrice(ydBalance)} YD
-            </span>
+          <div className="mt-4 flex items-center justify-center space-x-4">
+            <div className="inline-flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-full">
+              <Coins className="w-5 h-5 text-blue-600" />
+              <span className="text-blue-800 font-medium">
+                余额: {formatPrice(ydBalance)} YD
+              </span>
+            </div>
+            <button
+              onClick={handleAddToWallet}
+              className="inline-flex items-center space-x-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-full text-sm font-medium transition-colors"
+              title="添加一灯币到钱包"
+            >
+              <span>添加到钱包</span>
+            </button>
           </div>
         )}
       </div>
@@ -312,25 +379,47 @@ function CourseListing() {
                     </div>
                   </div>
 
-                  {/* 操作按钮 */}
-                  <button
-                    onClick={(e) => handleCourseAction(course, e)}
-                    disabled={
-                      !isConnected || 
-                      (!isPurchased && !canAfford(course.price)) || 
-                      isCurrentlyPurchasing
-                    }
-                    className={`w-full py-3 px-4 rounded-md transition-colors font-medium ${getButtonStyle(course)}`}
-                  >
-                    {isCurrentlyPurchasing && (isApproving || isPurchasing) ? (
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>{getButtonText(course)}</span>
-                      </div>
-                    ) : (
-                      getButtonText(course)
+                  {/* 操作按钮区域 */}
+                  <div className="space-y-2">
+                    {/* 如果需要授权且余额足够，显示授权按钮 */}
+                    {!isPurchased && canAfford(course.price) && needsApproval && (
+                      <button
+                        onClick={(e) => handleApprove(course, e)}
+                        disabled={approvingCourse === course.id}
+                        className="w-full py-2 px-4 rounded-md bg-yellow-500 text-white hover:bg-yellow-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                      >
+                        {approvingCourse === course.id ? (
+                          <div className="flex items-center justify-center space-x-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>授权中...</span>
+                          </div>
+                        ) : (
+                          `授权 ${formatPrice(course.price)} YD`
+                        )}
+                      </button>
                     )}
-                  </button>
+
+                    {/* 主操作按钮 */}
+                    <button
+                      onClick={(e) => handleCourseAction(course, e)}
+                      disabled={
+                        !isConnected || 
+                        (!isPurchased && !canAfford(course.price)) || 
+                        isCurrentlyPurchasing ||
+                        (!isPurchased && canAfford(course.price) && needsApproval)
+                      }
+                      className={`w-full py-3 px-4 rounded-md transition-colors font-medium ${getButtonStyle(course)}`}
+                    >
+                      {isCurrentlyPurchasing && (isApproving || isPurchasing) ? (
+                        <div className="flex items-center justify-center space-x-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>{getButtonText(course)}</span>
+                        </div>
+                      ) : (
+                        getButtonText(course)
+                      )}
+                    </button>
+                  </div>
 
                   {/* 余额不足时的额外提示 */}
                   {ydBalance && !canAfford(course.price) && !isPurchased && (
@@ -345,7 +434,7 @@ function CourseListing() {
                   {!isPurchased && canAfford(course.price) && needsApproval && (
                     <div className="text-center">
                       <p className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
-                        💡 首次购买需要先授权一灯币给合约
+                        💡 需要先授权一灯币给课程合约才能购买
                       </p>
                     </div>
                   )}
