@@ -25,11 +25,11 @@ export const YIDENG_TOKEN_CONFIG = {
     1337: "0x651EFdE2d1FC77c2F247B6fe42c09648caB69882",
   } as const,
 
-  // 课程合约地址（新增，专门用于课程购买）
+  // 课程合约地址（使用courseContract.ts中的地址）
   COURSE_CONTRACT_ADDRESSES: {
-    1: import.meta.env.VITE_COURSE_CONTRACT_ADDRESS_MAINNET,
-    11155111: import.meta.env.VITE_COURSE_CONTRACT_ADDRESS_SEPOLIA,
-    1337: import.meta.env.VITE_COURSE_CONTRACT_ADDRESS_LOCAL,
+    1: "0xea6e47911B5f76B81B2a18E8C674380372295f9C",
+    11155111: "0xea6e47911B5f76B81B2a18E8C674380372295f9C",
+    1337: "0xea6e47911B5f76B81B2a18E8C674380372295f9C",
   } as const,
 
   // 支持的网络
@@ -56,9 +56,9 @@ export const getCourseContractAddress = (chainId: number): string => {
   ];
   
   if (!address) {
-    // 如果没有配置环境变量，返回默认地址
+    // 使用courseContract.ts中的固定地址作为默认值
     console.warn(`课程合约未配置在网络 ${chainId}，使用默认地址`);
-    return "0x1234567890123456789012345678901234567890";
+    return "0xea6e47911B5f76B81B2a18E8C674380372295f9C";
   }
   
   return address;
@@ -117,6 +117,21 @@ export const calculateCreatorRevenue = (price: string): string => {
   
   const fee = parseFloat(calculatePlatformFee(price));
   return (priceNum - fee).toFixed(2);
+};
+
+// 检查用户余额是否足够购买课程
+export const canAffordCourse = (userBalance: string | null, coursePrice: string): boolean => {
+  if (!userBalance) return false;
+  
+  const balanceNum = parseFloat(userBalance);
+  const priceNum = parseFloat(coursePrice);
+  
+  return !isNaN(balanceNum) && !isNaN(priceNum) && balanceNum >= priceNum;
+};
+
+// 格式化用于显示的价格字符串
+export const formatCoursePrice = (price: string): string => {
+  return `${formatYiDengAmount(price)} YD`;
 };
 
 export default YIDENG_TOKEN_CONFIG;
