@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CreateCourseFormData, Course } from '../types/course';
+import type { CreateCourseFormData, Course } from '../types/course';
 import toast from 'react-hot-toast';
 
 interface UseCourseCreationResult {
