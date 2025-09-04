@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { PlusCircle, X, Upload, AlertCircle, CheckCircle, Coins } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useCourseContract, CreateCourseFormData, CourseLesson } from '../../hooks/useCourseContract';
+import { useCourseContract } from '../../hooks/useCourseContract';
+import { CreateCourseFormData, CourseLesson } from '../../types/courseTypes';
 import { YIDENG_REWARDS } from '../../config/contract';
 
 interface SuccessModalProps {
