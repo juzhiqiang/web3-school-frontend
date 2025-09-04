@@ -1,16 +1,25 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, Users, Star, BookOpen, Coins, Shield, CreditCard, CheckCircle } from 'lucide-react'
-import { getAllCourses } from '../../utils/courseStorage'
+import { Clock, Users, Star, BookOpen, Coins, Shield, CreditCard, CheckCircle, Lock } from 'lucide-react'
+import { getAllCourses, hasPurchased } from '../../utils/courseStorage'
 import { initializeSampleCourses } from '../../utils/courseDataInit'
 import { useWeb3 } from '../../contexts/Web3Context'
+import { useCoursePurchase } from '../../hooks/useCoursePurchase'
 import type { Course } from '../../types/courseTypes'
 import toast from 'react-hot-toast'
 
 function CourseListing() {
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const { ydBalance } = useWeb3()
+  const [purchasingCourse, setPurchasingCourse] = useState<string | null>(null)
+  const { isConnected, address, ydBalance } = useWeb3()
+  const { 
+    isPurchasing, 
+    isApproving, 
+    purchaseCourse, 
+    checkAllowance, 
+    needsApproval 
+  } = useCoursePurchase()
 
   // 从本地缓存加载课程数据
   useEffect(() => {
@@ -35,6 +44,12 @@ function CourseListing() {
     loadCourses()
   }, [])
 
+  // 检查用户是否已购买课程
+  const hasUserPurchased = (courseId: string) => {
+    if (!address) return false
+    return hasPurchased(courseId, address)
+  }
+
   const getLevelColor = (level: string) => {
     switch (level) {
       case '初级': return 'bg-green-100 text-green-800'
@@ -55,6 +70,76 @@ function CourseListing() {
     const ydBalanceNum = parseFloat(ydBalance)
     const priceNum = parseFloat(price)
     return ydBalanceNum >= priceNum
+  }
+
+  const handleCourseAction = async (course: Course, e: React.MouseEvent) => {
+    e.preventDefault()
+    
+    if (!isConnected) {
+      toast.error('请先连接钱包')
+      return
+    }
+
+    // 如果已购买，直接跳转到详情页
+    if (hasUserPurchased(course.id)) {
+      window.location.href = `/course/${course.id}`
+      return
+    }
+
+    // 检查余额
+    if (!canAfford(course.price)) {
+      toast.error(`余额不足，需要 ${formatPrice(course.price)} YD，当前余额 ${formatPrice(ydBalance || '0')} YD`)
+      return
+    }
+
+    // 开始购买流程
+    setPurchasingCourse(course.id)
+    
+    try {
+      const success = await purchaseCourse(course.id, course.price)
+      if (success) {
+        toast.success('课程购买成功！正在跳转到课程详情...')
+        setTimeout(() => {
+          window.location.href = `/course/${course.id}`
+        }, 1000)
+      }
+    } catch (error) {
+      console.error('购买失败:', error)
+    } finally {
+      setPurchasingCourse(null)
+    }
+  }
+
+  const getButtonText = (course: Course) => {
+    const isPurchased = hasUserPurchased(course.id)
+    const isCurrentlyPurchasing = purchasingCourse === course.id
+
+    if (!isConnected) return '请先连接钱包'
+    if (isPurchased) return '进入学习'
+    if (isCurrentlyPurchasing) {
+      if (isApproving) return '授权中...'
+      if (isPurchasing) return '购买中...'
+    }
+    if (!canAfford(course.price)) return '余额不足'
+    
+    // 检查是否需要授权
+    return needsApproval ? '授权并购买' : '立即购买'
+  }
+
+  const getButtonStyle = (course: Course) => {
+    const isPurchased = hasUserPurchased(course.id)
+    const isCurrentlyPurchasing = purchasingCourse === course.id
+    const isDisabled = !isConnected || (!isPurchased && !canAfford(course.price)) || isCurrentlyPurchasing
+
+    if (isPurchased) {
+      return 'bg-green-600 text-white hover:bg-green-700'
+    }
+    
+    if (isDisabled) {
+      return 'bg-gray-400 text-white cursor-not-allowed'
+    }
+    
+    return 'bg-blue-600 text-white hover:bg-blue-700'
   }
 
   if (isLoading) {
@@ -104,128 +189,171 @@ function CourseListing() {
           </div>
           <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg p-6 text-center">
             <div className="text-3xl font-bold mb-2">
-              {courses.reduce((sum, course) => sum + parseFloat(course.price), 0).toFixed(0)}
+              {address ? courses.filter(course => hasUserPurchased(course.id)).length : 0}
             </div>
-            <div className="text-purple-100">YD 总价值</div>
+            <div className="text-purple-100">已购买</div>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {courses.map((course) => (
-          <div key={course.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div className="relative">
-              <img 
-                src={course.thumbnailHash || `https://via.placeholder.com/400x200?text=${encodeURIComponent(course.title)}`} 
-                alt={course.title}
-                className="w-full h-48 object-cover"
-              />
-              <div className="absolute top-4 right-4">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getLevelColor(course.difficulty || course.level || '初级')}`}>
-                  {course.difficulty || course.level || '初级'}
-                </span>
-              </div>
-              
-              {/* 余额不足提示 */}
-              {ydBalance && !canAfford(course.price) && (
-                <div className="absolute top-4 left-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                  余额不足
-                </div>
-              )}
-
-              {/* 免费预览课程标识 */}
-              {course.lessons && course.lessons.some(lesson => lesson.isPreview) && (
-                <div className="absolute bottom-4 left-4 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                  含免费预览
-                </div>
-              )}
-            </div>
-            
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-2 line-clamp-2">{course.title}</h3>
-              <p className="text-gray-600 text-sm mb-4 line-clamp-3">{course.description}</p>
-              
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-gray-500">
-                  讲师: {course.instructorName || '匿名讲师'}
-                </span>
-                <div className="flex items-center space-x-1">
-                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                  <span className="text-sm font-medium">
-                    {course.rating || '5.0'}
+        {courses.map((course) => {
+          const isPurchased = hasUserPurchased(course.id)
+          const isCurrentlyPurchasing = purchasingCourse === course.id
+          
+          return (
+            <div key={course.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+              <div className="relative">
+                <img 
+                  src={course.thumbnailHash || `https://via.placeholder.com/400x200?text=${encodeURIComponent(course.title)}`} 
+                  alt={course.title}
+                  className="w-full h-48 object-cover"
+                />
+                <div className="absolute top-4 right-4">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getLevelColor(course.difficulty || course.level || '初级')}`}>
+                    {course.difficulty || course.level || '初级'}
                   </span>
-                  {course.reviews && (
-                    <span className="text-xs text-gray-400">({course.reviews})</span>
-                  )}
                 </div>
+                
+                {/* 购买状态标识 */}
+                {isPurchased ? (
+                  <div className="absolute top-4 left-4 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+                    <CheckCircle className="w-3 h-3" />
+                    <span>已购买</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* 余额不足提示 */}
+                    {ydBalance && !canAfford(course.price) && (
+                      <div className="absolute top-4 left-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                        余额不足
+                      </div>
+                    )}
+                    
+                    {/* 需要购买标识 */}
+                    {canAfford(course.price) && (
+                      <div className="absolute top-4 left-4 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+                        <Lock className="w-3 h-3" />
+                        <span>需要购买</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* 免费预览课程标识 */}
+                {course.lessons && course.lessons.some(lesson => lesson.isPreview) && (
+                  <div className="absolute bottom-4 left-4 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                    含免费预览
+                  </div>
+                )}
               </div>
               
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-4 text-sm text-gray-500">
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-2 line-clamp-2">{course.title}</h3>
+                <p className="text-gray-600 text-sm mb-4 line-clamp-3">{course.description}</p>
+                
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm text-gray-500">
+                    讲师: {course.instructorName || '匿名讲师'}
+                  </span>
                   <div className="flex items-center space-x-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{course.duration}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Users className="w-4 h-4" />
-                    <span>{course.enrollmentCount || 0}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 课程标签 */}
-              {course.tags && course.tags.length > 0 && (
-                <div className="mb-4">
-                  <div className="flex flex-wrap gap-1">
-                    {course.tags.slice(0, 3).map((tag, index) => (
-                      <span 
-                        key={index}
-                        className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {course.tags.length > 3 && (
-                      <span className="text-xs text-gray-400">
-                        +{course.tags.length - 3}
-                      </span>
+                    <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                    <span className="text-sm font-medium">
+                      {course.rating || '5.0'}
+                    </span>
+                    {course.reviews && (
+                      <span className="text-xs text-gray-400">({course.reviews})</span>
                     )}
                   </div>
                 </div>
-              )}
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Coins className="w-5 h-5 text-blue-600" />
-                  <span className="text-2xl font-bold text-blue-600">
-                    {formatPrice(course.price)} YD
-                  </span>
+                
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{course.duration}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Users className="w-4 h-4" />
+                      <span>{course.enrollmentCount || 0}</span>
+                    </div>
+                  </div>
                 </div>
-                <Link
-                  to={`/course/${course.id}`}
-                  className="px-6 py-2 rounded-md transition-colors font-medium bg-blue-600 text-white hover:bg-blue-700"
-                  onClick={(e) => {
-                    if (ydBalance && !canAfford(course.price)) {
-                      // 不阻止链接，让用户进入详情页查看购买流程
-                      toast.info(`注意：余额不足，需要 ${formatPrice(course.price)} YD`)
-                    }
-                  }}
-                >
-                  查看详情
-                </Link>
-              </div>
 
-              {/* 余额不足时的额外提示 */}
-              {ydBalance && !canAfford(course.price) && (
-                <div className="mt-3 text-center">
-                  <p className="text-xs text-red-600">
-                    需要 {formatPrice((parseFloat(course.price) - parseFloat(ydBalance)).toString())} YD
-                  </p>
+                {/* 课程标签 */}
+                {course.tags && course.tags.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex flex-wrap gap-1">
+                      {course.tags.slice(0, 3).map((tag, index) => (
+                        <span 
+                          key={index}
+                          className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                      {course.tags.length > 3 && (
+                        <span className="text-xs text-gray-400">
+                          +{course.tags.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="space-y-4">
+                  {/* 价格显示 */}
+                  <div className="flex items-center justify-center">
+                    <div className="flex items-center space-x-2">
+                      <Coins className="w-5 h-5 text-blue-600" />
+                      <span className="text-2xl font-bold text-blue-600">
+                        {formatPrice(course.price)} YD
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 操作按钮 */}
+                  <button
+                    onClick={(e) => handleCourseAction(course, e)}
+                    disabled={
+                      !isConnected || 
+                      (!isPurchased && !canAfford(course.price)) || 
+                      isCurrentlyPurchasing
+                    }
+                    className={`w-full py-3 px-4 rounded-md transition-colors font-medium ${getButtonStyle(course)}`}
+                  >
+                    {isCurrentlyPurchasing && (isApproving || isPurchasing) ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>{getButtonText(course)}</span>
+                      </div>
+                    ) : (
+                      getButtonText(course)
+                    )}
+                  </button>
+
+                  {/* 余额不足时的额外提示 */}
+                  {ydBalance && !canAfford(course.price) && !isPurchased && (
+                    <div className="text-center">
+                      <p className="text-xs text-red-600">
+                        还需要 {formatPrice((parseFloat(course.price) - parseFloat(ydBalance)).toString())} YD
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 授权提示 */}
+                  {!isPurchased && canAfford(course.price) && needsApproval && (
+                    <div className="text-center">
+                      <p className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
+                        💡 首次购买需要先授权一灯币给合约
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
       
       {/* 空状态提示 */}
@@ -250,11 +378,11 @@ function CourseListing() {
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Coins className="w-5 h-5 text-yellow-600" />
               <p className="text-yellow-800 font-medium">
-                连接钱包查看余额
+                连接钱包开始购买课程
               </p>
             </div>
             <p className="text-yellow-700 text-sm">
-              连接钱包后可以查看您的一灯币余额，并购买感兴趣的课程
+              连接钱包后可以查看余额并购买课程
             </p>
           </div>
         </div>
@@ -280,7 +408,7 @@ function CourseListing() {
             </div>
             <h4 className="font-semibold text-gray-800">2. 确认购买</h4>
             <p className="text-sm text-gray-600">
-              点击购买按钮，使用一灯币支付课程费用
+              授权完成后，点击购买使用一灯币支付课程费用
             </p>
           </div>
           
@@ -290,15 +418,15 @@ function CourseListing() {
             </div>
             <h4 className="font-semibold text-gray-800">3. 开始学习</h4>
             <p className="text-sm text-gray-600">
-              购买成功后即可访问所有课程内容
+              购买成功后即可进入课程详情页面开始学习
             </p>
           </div>
         </div>
         
         <div className="mt-6 text-center">
           <div className="inline-flex items-center space-x-2 text-sm text-gray-600 bg-white px-4 py-2 rounded-full">
-            <Coins className="w-4 h-4 text-blue-600" />
-            <span>使用一灯币 (YD) 购买课程</span>
+            <Lock className="w-4 h-4 text-blue-600" />
+            <span>购买后才能进入课程详情页面</span>
           </div>
         </div>
       </div>
