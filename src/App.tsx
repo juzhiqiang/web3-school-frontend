@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { WagmiProvider } from 'wagmi'
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import toast, { Toaster } from 'react-hot-toast'
 import { config } from './config/web3'
 import { Web3Provider } from './contexts/Web3Context'
 import Layout from './components/Layout/Layout'
@@ -36,6 +37,35 @@ function App() {
                   <Route path="course/:id/details" element={<CourseDetails details />} />
                 </Route>
               </Routes>
+              
+              {/* Toast 通知组件 */}
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#363636',
+                    color: '#fff',
+                  },
+                  success: {
+                    duration: 5000,
+                    iconTheme: {
+                      primary: '#10B981',
+                      secondary: '#fff',
+                    },
+                  },
+                  error: {
+                    duration: 6000,
+                    iconTheme: {
+                      primary: '#EF4444',
+                      secondary: '#fff',
+                    },
+                  },
+                  loading: {
+                    duration: Infinity,
+                  },
+                }}
+              />
             </Router>
           </Web3Provider>
         </RainbowKitProvider>
