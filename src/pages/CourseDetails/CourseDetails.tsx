@@ -48,6 +48,7 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [purchaseStep, setPurchaseStep] = useState<'idle' | 'checking' | 'approving' | 'purchasing' | 'completed' | 'error'>('idle')
+  const [hasAccess, setHasAccess] = useState(false)
 
   // 工具函数
   const formatPrice = (price: string) => {
@@ -63,7 +64,7 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
     return lesson?.isPreview || isEnrolled
   }
 
-  // 加载课程数据
+  // 加载课程数据和访问权限检查
   useEffect(() => {
     const loadCourseData = async () => {
       if (!id) {
@@ -88,7 +89,16 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
         if (address) {
           const purchased = hasPurchased(id, address)
           setIsEnrolled(purchased)
+          setHasAccess(purchased)
           console.log(`课程 ${id} 购买状态:`, purchased)
+          
+          // 如果用户没有购买课程，显示购买提示但不阻止访问（显示购买界面）
+          if (!purchased) {
+            console.log('用户尚未购买此课程，显示购买界面')
+          }
+        } else {
+          // 用户未连接钱包，显示连接钱包提示
+          console.log('用户未连接钱包')
         }
       } catch (error) {
         console.error('加载课程数据失败:', error)
@@ -149,7 +159,9 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
       
       if (success) {
         setIsEnrolled(true)
+        setHasAccess(true)
         setPurchaseStep('completed')
+        toast.success('课程购买成功！现在可以学习了')
         
         // 3秒后重置状态
         setTimeout(() => {
@@ -170,17 +182,19 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
     }
   }
 
+  // 如果正在加载，显示加载状态
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载课程中...</p>
+          <p className="mt-4 text-gray-600">验证访问权限...</p>
         </div>
       </div>
     )
   }
 
+  // 如果课程不存在
   if (!courseData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -198,7 +212,209 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
     )
   }
 
-  // 从缓存的课程数据中获取课程章节，如果没有则使用默认
+  // 如果没有访问权限（未购买），显示购买页面
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* 返回按钮 */}
+        <div className="bg-white border-b">
+          <div className="container mx-auto px-4 py-4">
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>返回课程列表</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            {/* 课程预览卡片 */}
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+              <div className="relative">
+                <img 
+                  src={courseData.thumbnailHash || `https://via.placeholder.com/800x300?text=${encodeURIComponent(courseData.title)}`}
+                  alt={courseData.title}
+                  className="w-full h-64 object-cover"
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <Lock className="w-16 h-16 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold mb-2">需要购买才能访问</h2>
+                    <p>购买课程后即可查看完整内容和开始学习</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <h1 className="text-3xl font-bold mb-4">{courseData.title}</h1>
+                <p className="text-gray-600 mb-6">{courseData.description}</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-5 h-5 text-gray-500" />
+                    <span>{courseData.duration}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Users className="w-5 h-5 text-gray-500" />
+                    <span>{courseData.enrollmentCount || 0} 名学生</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Star className="w-5 h-5 text-yellow-500 fill-current" />
+                    <span>{courseData.rating || '5.0'} 评分</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 购买区域 */}
+            <div className="bg-white rounded-lg shadow-lg p-8">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold mb-4">购买此课程</h2>
+                <div className="flex items-center justify-center space-x-2 mb-4">
+                  <Coins className="w-8 h-8 text-blue-600" />
+                  <span className="text-4xl font-bold text-blue-600">
+                    {formatPrice(courseData.price)} YD
+                  </span>
+                </div>
+                <p className="text-gray-600">使用一灯币购买课程</p>
+              </div>
+
+              {/* 当前余额显示 */}
+              {ydBalance && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">当前余额</span>
+                    <span className={`font-medium ${hasEnoughBalance() ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatPrice(ydBalance)} YD
+                    </span>
+                  </div>
+                  {!hasEnoughBalance() && (
+                    <div className="mt-2 text-xs text-red-600">
+                      还需要 {formatPrice((parseFloat(courseData.price) - parseFloat(ydBalance)).toString())} YD
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 购买进度指示器 */}
+              <PurchaseStepIndicator 
+                currentStep={purchaseStep}
+                price={formatPrice(courseData.price)}
+                error={purchaseError}
+              />
+
+              {/* 购买按钮区域 */}
+              <div className="space-y-4">
+                {/* 余额不足警告 */}
+                {!hasEnoughBalance() && ydBalance && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                      <p className="text-red-800 font-medium">余额不足</p>
+                    </div>
+                    <p className="text-red-700 text-sm mt-1">
+                      请先获取足够的一灯币后再购买课程
+                    </p>
+                  </div>
+                )}
+
+                {/* 连接钱包提醒 */}
+                {!isConnected && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-2">
+                      <Shield className="w-5 h-5 text-yellow-600" />
+                      <p className="text-yellow-800 font-medium">需要连接钱包</p>
+                    </div>
+                    <p className="text-yellow-700 text-sm mt-1">
+                      请先连接您的Web3钱包来购买课程
+                    </p>
+                  </div>
+                )}
+
+                {/* 授权说明 */}
+                {needsApproval && hasEnoughBalance() && isConnected && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-2">
+                      <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">需要授权</p>
+                        <p className="text-xs text-blue-700 mt-1">
+                          首次购买需要授权一灯币给课程合约，这是安全的标准流程
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 购买按钮 */}
+                <button 
+                  onClick={handlePurchase}
+                  disabled={!isConnected || isPurchasing || isApproving || !hasEnoughBalance()}
+                  className={`w-full py-4 px-6 rounded-lg font-bold text-lg transition-colors ${
+                    !isConnected 
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : !hasEnoughBalance()
+                      ? 'bg-red-400 text-white cursor-not-allowed'
+                      : isPurchasing || isApproving
+                      ? 'bg-blue-400 text-white cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
+                  }`}
+                >
+                  {!isConnected ? (
+                    '请先连接钱包'
+                  ) : !hasEnoughBalance() ? (
+                    '余额不足'
+                  ) : isApproving ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>正在授权...</span>
+                    </div>
+                  ) : isPurchasing ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>正在购买...</span>
+                    </div>
+                  ) : (
+                    `立即购买 (${formatPrice(courseData.price)} YD)`
+                  )}
+                </button>
+              </div>
+
+              {/* 购买说明 */}
+              <div className="mt-8 bg-gray-50 rounded-lg p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">
+                  购买后您将获得：
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <span className="text-gray-700">完整课程内容访问权限</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <span className="text-gray-700">所有视频课程和学习资料</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <span className="text-gray-700">永久学习权限，随时复习</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <span className="text-gray-700">讲师答疑和学习支持</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 用户已购买，显示完整课程内容
   const lessons = courseData.lessons || [
     { 
       id: '1', 
@@ -252,24 +468,18 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
                   <button 
-                    className={`bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 transition-all transform hover:scale-110 ${
-                      !canAccessLesson(lessons[selectedLesson]) ? 'cursor-not-allowed opacity-50' : ''
-                    }`}
+                    className="bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 transition-all transform hover:scale-110"
                     onClick={() => {
-                      if (!canAccessLesson(lessons[selectedLesson])) {
-                        toast.info('请先购买课程才能观看此内容')
-                      }
+                      toast.success('开始播放课程视频')
                     }}
                   >
                     <Play className="w-8 h-8 text-blue-600" />
                   </button>
                 </div>
-                {!canAccessLesson(lessons[selectedLesson]) && (
-                  <div className="absolute top-4 right-4 bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                    <Lock className="w-4 h-4" />
-                    <span>需要购买</span>
-                  </div>
-                )}
+                <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>已购买</span>
+                </div>
               </div>
               
               {/* 当前播放课程信息 */}
@@ -373,136 +583,17 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
 
           {/* 右侧边栏 */}
           <div className="space-y-6">
-            {/* 购买卡片 */}
+            {/* 学习进度卡片 */}
             <div className="bg-white rounded-lg shadow-lg p-6 sticky top-6">
               <div className="text-center mb-6">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Coins className="w-6 h-6 text-blue-600" />
-                  <span className="text-3xl font-bold text-blue-600">
-                    {formatPrice(courseData.price)} YD
-                  </span>
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                  <span className="text-2xl font-bold text-green-600">已购买</span>
                 </div>
-                <p className="text-gray-600">使用一灯币购买</p>
+                <p className="text-gray-600">享受完整学习体验</p>
               </div>
 
-              {/* 当前余额显示 */}
-              {ydBalance && (
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">当前余额</span>
-                    <span className={`font-medium ${hasEnoughBalance() ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatPrice(ydBalance)} YD
-                    </span>
-                  </div>
-                  {!hasEnoughBalance() && (
-                    <div className="mt-2 text-xs text-red-600">
-                      还需要 {formatPrice((parseFloat(courseData.price) - parseFloat(ydBalance)).toString())} YD
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 购买进度指示器 */}
-              <PurchaseStepIndicator 
-                currentStep={purchaseStep}
-                price={formatPrice(courseData.price)}
-                error={purchaseError}
-              />
-
-              {/* 购买状态和按钮 */}
-              {isEnrolled ? (
-                <div className="space-y-3">
-                  <button className="w-full bg-green-600 text-white py-3 px-4 rounded-md font-medium">
-                    <CheckCircle className="w-5 h-5 inline mr-2" />
-                    已购买 - 可以学习
-                  </button>
-                  <p className="text-center text-sm text-green-600">
-                    恭喜！您已拥有此课程的完整访问权限
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {/* 余额不足警告 */}
-                  {!hasEnoughBalance() && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <div className="flex items-center space-x-2">
-                        <AlertTriangle className="w-4 h-4 text-red-600" />
-                        <p className="text-red-800 text-sm font-medium">余额不足</p>
-                      </div>
-                      <p className="text-red-700 text-xs mt-1">
-                        请先获取足够的一灯币后再购买课程
-                      </p>
-                    </div>
-                  )}
-
-                  {/* 授权说明 */}
-                  {needsApproval && hasEnoughBalance() && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <div className="flex items-start space-x-2">
-                        <Shield className="w-4 h-4 text-yellow-600 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-yellow-800">需要授权</p>
-                          <p className="text-xs text-yellow-700 mt-1">
-                            首次购买需要授权一灯币，这是安全的标准流程
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 购买按钮 */}
-                  <button 
-                    onClick={handlePurchase}
-                    disabled={!isConnected || isPurchasing || isApproving || !hasEnoughBalance()}
-                    className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
-                      !isConnected 
-                        ? 'bg-gray-400 text-white cursor-not-allowed'
-                        : !hasEnoughBalance()
-                        ? 'bg-red-400 text-white cursor-not-allowed'
-                        : isPurchasing || isApproving
-                        ? 'bg-blue-400 text-white cursor-not-allowed'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    {!isConnected ? (
-                      '请先连接钱包'
-                    ) : !hasEnoughBalance() ? (
-                      '余额不足'
-                    ) : isApproving ? (
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>授权中...</span>
-                      </div>
-                    ) : isPurchasing ? (
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>购买中...</span>
-                      </div>
-                    ) : (
-                      `立即购买 (${formatPrice(courseData.price)} YD)`
-                    )}
-                  </button>
-                </div>
-              )}
-              
-              <button 
-                className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md font-medium hover:bg-gray-200 transition-colors mb-6 mt-3"
-                onClick={() => {
-                  // 播放预览课程
-                  const previewLesson = lessons.find(lesson => lesson.isPreview)
-                  if (previewLesson) {
-                    const previewIndex = lessons.indexOf(previewLesson)
-                    setSelectedLesson(previewIndex)
-                    toast.success('正在播放免费预览课程')
-                  } else {
-                    toast.info('此课程暂无免费预览内容')
-                  }
-                }}
-              >
-                免费预览
-              </button>
-
-              <div className="space-y-3 text-sm">
+              <div className="space-y-3 text-sm border-t pt-4">
                 <div className="flex justify-between">
                   <span className="text-gray-600">讲师</span>
                   <span className="font-medium">{courseData.instructorName || '匿名讲师'}</span>
@@ -520,10 +611,8 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
                   <span className="font-medium">{courseData.difficulty || '初级'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">创建时间</span>
-                  <span className="font-medium">
-                    {courseData.createdAt ? new Date(courseData.createdAt).toLocaleDateString('zh-CN') : '未知'}
-                  </span>
+                  <span className="text-gray-600">购买价格</span>
+                  <span className="font-medium text-blue-600">{formatPrice(courseData.price)} YD</span>
                 </div>
               </div>
             </div>
@@ -541,40 +630,22 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
                         : 'hover:bg-gray-50'
                     }`}
                     onClick={() => {
-                      if (canAccessLesson(lesson)) {
-                        setSelectedLesson(index)
-                      } else {
-                        toast.info('请先购买课程才能观看此章节')
-                      }
+                      setSelectedLesson(index)
+                      toast.success(`正在播放：${lesson.title}`)
                     }}
                   >
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
-                        {canAccessLesson(lesson) ? (
-                          lesson.isPreview ? (
-                            <Play className="w-5 h-5 text-green-500" />
-                          ) : (
-                            <Play className="w-5 h-5 text-blue-500" />
-                          )
-                        ) : (
-                          <Lock className="w-5 h-5 text-gray-400" />
-                        )}
+                        <Play className="w-5 h-5 text-blue-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-medium truncate ${
-                          canAccessLesson(lesson) ? 'text-gray-900' : 'text-gray-500'
-                        }`}>
+                        <p className="font-medium truncate text-gray-900">
                           {lesson.title}
                         </p>
                         <p className="text-sm text-gray-500">{lesson.duration}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {lesson.isPreview && (
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                          免费预览
-                        </span>
-                      )}
                       <ChevronRight className="w-4 h-4 text-gray-400" />
                     </div>
                   </div>
@@ -586,40 +657,11 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
                   <span>总时长: {courseData.duration}</span>
                   <span>{lessons.length} 个课时</span>
                 </div>
-                {!isEnrolled && (
-                  <div className="mt-2 text-xs text-gray-500 text-center">
-                    购买后可访问所有 {lessons.filter(l => !l.isPreview).length} 个付费课时
-                  </div>
-                )}
+                <div className="mt-2 text-xs text-green-600 text-center">
+                  🎉 恭喜！您可以观看所有课程内容
+                </div>
               </div>
             </div>
-
-            {/* 购买说明 */}
-            {!isEnrolled && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h3 className="text-lg font-bold text-blue-800 mb-3">
-                  <Shield className="w-5 h-5 inline mr-2" />
-                  一灯币购买流程
-                </h3>
-                <div className="space-y-2 text-blue-700">
-                  <p className="text-sm">
-                    <span className="font-medium">第一步:</span> 确保您有足够的一灯币余额 ({formatPrice(courseData.price)} YD)
-                  </p>
-                  <p className="text-sm">
-                    <span className="font-medium">第二步:</span> 授权一灯币给课程合约（首次购买需要）
-                  </p>
-                  <p className="text-sm">
-                    <span className="font-medium">第三步:</span> 确认购买交易，支付一灯币
-                  </p>
-                  <p className="text-sm">
-                    <span className="font-medium">完成:</span> 购买成功后即可观看所有课程内容
-                  </p>
-                </div>
-                <div className="mt-4 text-xs text-blue-600 bg-blue-100 p-2 rounded">
-                  💡 提示：所有交易都在区块链上执行，安全透明
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
