@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, Users, Star, BookOpen, Coins } from 'lucide-react'
+import { Clock, Users, Star, BookOpen, Coins, Shield, CreditCard, CheckCircle } from 'lucide-react'
 import { getAllCourses } from '../../utils/courseStorage'
+import { initializeSampleCourses } from '../../utils/courseDataInit'
 import { useWeb3 } from '../../contexts/Web3Context'
 import type { Course } from '../../types/courseTypes'
 
@@ -15,16 +16,14 @@ function CourseListing() {
     const loadCourses = async () => {
       setIsLoading(true)
       try {
+        // 初始化示例课程数据（如果本地没有数据的话）
+        initializeSampleCourses()
+        
         // 获取本地存储的所有课程
         const cachedCourses = getAllCourses()
-        
-        // 如果本地没有课程数据，创建一些示例课程
-        if (cachedCourses.length === 0) {
-          // 这里可以添加一些默认课程数据或者从远程API获取
-          console.log('本地缓存中没有课程数据')
-        }
-        
         setCourses(cachedCourses)
+        
+        console.log(`加载了 ${cachedCourses.length} 门课程`)
       } catch (error) {
         console.error('加载课程数据失败:', error)
       } finally {
@@ -89,9 +88,31 @@ function CourseListing() {
         )}
       </div>
 
+      {/* 课程统计 */}
+      {courses.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-6 text-center">
+            <div className="text-3xl font-bold mb-2">{courses.length}</div>
+            <div className="text-blue-100">门课程</div>
+          </div>
+          <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg p-6 text-center">
+            <div className="text-3xl font-bold mb-2">
+              {courses.reduce((sum, course) => sum + (course.enrollmentCount || 0), 0)}
+            </div>
+            <div className="text-green-100">名学员</div>
+          </div>
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg p-6 text-center">
+            <div className="text-3xl font-bold mb-2">
+              {courses.reduce((sum, course) => sum + parseFloat(course.price), 0).toFixed(0)}
+            </div>
+            <div className="text-purple-100">YD 总价值</div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {courses.map((course) => (
-          <div key={course.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+          <div key={course.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="relative">
               <img 
                 src={course.thumbnailHash || `https://via.placeholder.com/400x200?text=${encodeURIComponent(course.title)}`} 
@@ -99,15 +120,22 @@ function CourseListing() {
                 className="w-full h-48 object-cover"
               />
               <div className="absolute top-4 right-4">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getLevelColor(course.difficulty || '初级')}`}>
-                  {course.difficulty || '初级'}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getLevelColor(course.difficulty || course.level || '初级')}`}>
+                  {course.difficulty || course.level || '初级'}
                 </span>
               </div>
               
               {/* 余额不足提示 */}
-              {!canAfford(course.price) && (
+              {ydBalance && !canAfford(course.price) && (
                 <div className="absolute top-4 left-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
                   余额不足
+                </div>
+              )}
+
+              {/* 免费预览课程标识 */}
+              {course.lessons && course.lessons.some(lesson => lesson.isPreview) && (
+                <div className="absolute bottom-4 left-4 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                  含免费预览
                 </div>
               )}
             </div>
@@ -125,6 +153,9 @@ function CourseListing() {
                   <span className="text-sm font-medium">
                     {course.rating || '5.0'}
                   </span>
+                  {course.reviews && (
+                    <span className="text-xs text-gray-400">({course.reviews})</span>
+                  )}
                 </div>
               </div>
               
@@ -140,6 +171,27 @@ function CourseListing() {
                   </div>
                 </div>
               </div>
+
+              {/* 课程标签 */}
+              {course.tags && course.tags.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex flex-wrap gap-1">
+                    {course.tags.slice(0, 3).map((tag, index) => (
+                      <span 
+                        key={index}
+                        className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {course.tags.length > 3 && (
+                      <span className="text-xs text-gray-400">
+                        +{course.tags.length - 3}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -150,21 +202,20 @@ function CourseListing() {
                 </div>
                 <Link
                   to={`/course/${course.id}`}
-                  className={`px-6 py-2 rounded-md transition-colors font-medium ${
-                    canAfford(course.price)
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                  onClick={(e) => {
-                    if (!canAfford(course.price)) {
-                      e.preventDefault()
-                      toast.error(`余额不足，需要 ${formatPrice(course.price)} YD`)
-                    }
-                  }}
+                  className="px-6 py-2 rounded-md transition-colors font-medium bg-blue-600 text-white hover:bg-blue-700"
                 >
-                  {canAfford(course.price) ? '查看详情' : '余额不足'}
+                  查看详情
                 </Link>
               </div>
+
+              {/* 余额不足时的额外提示 */}
+              {ydBalance && !canAfford(course.price) && (
+                <div className="mt-3 text-center">
+                  <p className="text-xs text-red-600">
+                    需要 {formatPrice((parseFloat(course.price) - parseFloat(ydBalance)).toString())} YD
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -178,9 +229,10 @@ function CourseListing() {
           </div>
           <h3 className="text-xl font-medium text-gray-600 mb-2">暂无课程</h3>
           <p className="text-gray-500 mb-4">目前还没有发布的课程，请稍后再来查看。</p>
-          <p className="text-sm text-gray-400">
-            提示：课程数据从本地缓存读取，您可以先创建一些课程。
-          </p>
+          <div className="space-y-2 text-sm text-gray-400">
+            <p>💡 您可以创建自己的课程与大家分享知识</p>
+            <p>🔗 课程数据存储在浏览器本地缓存中</p>
+          </div>
         </div>
       )}
       
@@ -188,12 +240,61 @@ function CourseListing() {
       {!ydBalance && (
         <div className="mt-8 text-center">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md mx-auto">
-            <p className="text-yellow-800">
-              请先连接钱包查看您的一灯币余额
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Coins className="w-5 h-5 text-yellow-600" />
+              <p className="text-yellow-800 font-medium">
+                连接钱包查看余额
+              </p>
+            </div>
+            <p className="text-yellow-700 text-sm">
+              连接钱包后可以查看您的一灯币余额，并购买感兴趣的课程
             </p>
           </div>
         </div>
       )}
+
+      {/* 购买说明 */}
+      <div className="mt-12 bg-gray-50 rounded-lg p-6">
+        <h3 className="text-lg font-bold mb-6 text-center">一灯币课程购买流程</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+          <div className="space-y-3">
+            <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center mx-auto">
+              <Shield className="w-6 h-6" />
+            </div>
+            <h4 className="font-semibold text-gray-800">1. 授权代币</h4>
+            <p className="text-sm text-gray-600">
+              首次购买需要授权一灯币给课程合约，这是安全的标准流程
+            </p>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="w-12 h-12 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto">
+              <CreditCard className="w-6 h-6" />
+            </div>
+            <h4 className="font-semibold text-gray-800">2. 确认购买</h4>
+            <p className="text-sm text-gray-600">
+              点击购买按钮，使用一灯币支付课程费用
+            </p>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="w-12 h-12 bg-purple-500 text-white rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+            <h4 className="font-semibold text-gray-800">3. 开始学习</h4>
+            <p className="text-sm text-gray-600">
+              购买成功后即可访问所有课程内容
+            </p>
+          </div>
+        </div>
+        
+        <div className="mt-6 text-center">
+          <div className="inline-flex items-center space-x-2 text-sm text-gray-600 bg-white px-4 py-2 rounded-full">
+            <Coins className="w-4 h-4 text-blue-600" />
+            <span>使用一灯币 (YD) 购买课程</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
