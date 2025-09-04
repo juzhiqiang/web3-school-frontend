@@ -2,8 +2,7 @@ import { useState, useCallback } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useYiDengToken } from './useYiDengToken';
 import { useCourseContract } from './useCourseContract';
-import { getYiDengTokenAddress } from '../config/yidengToken';
-import { COURSE_CONTRACT_CONFIG } from '../config/courseContract';
+import { getCourseContractAddress } from '../config/yidengToken';
 import { recordPurchase } from '../utils/courseStorage';
 import { useWeb3 } from '../contexts/Web3Context';
 import toast from 'react-hot-toast';
@@ -32,7 +31,7 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
   // 检查授权额度是否足够
   const checkAllowance = useCallback(async (price: string): Promise<boolean> => {
     try {
-      const courseContractAddress = COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS;
+      const courseContractAddress = getCourseContractAddress(chainId);
       const allowance = await checkTokenAllowance(courseContractAddress);
       const allowanceNum = parseFloat(allowance);
       const priceNum = parseFloat(price);
@@ -40,13 +39,15 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
       const hasEnoughAllowance = allowanceNum >= priceNum;
       setNeedsApproval(!hasEnoughAllowance);
       
+      console.log(`授权检查: 当前授权 ${allowance} YD, 需要 ${price} YD, 是否足够: ${hasEnoughAllowance}`);
+      
       return hasEnoughAllowance;
     } catch (err) {
       console.error('检查授权额度失败:', err);
       setNeedsApproval(true);
       return false;
     }
-  }, [checkTokenAllowance]);
+  }, [checkTokenAllowance, chainId]);
 
   // 购买课程（完整流程：检查余额 -> 授权 -> 购买 -> 记录）
   const purchaseCourse = useCallback(async (courseId: string, price: string): Promise<boolean> => {
@@ -63,8 +64,11 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
       const ydBalanceNum = parseFloat(ydBalance || '0');
       const priceNum = parseFloat(price);
       
+      console.log(`余额检查: 当前余额 ${ydBalance} YD, 课程价格 ${price} YD`);
+      
       if (ydBalanceNum < priceNum) {
-        toast.error(`余额不足，需要 ${price} YD，当前余额 ${ydBalance} YD`);
+        const shortfall = priceNum - ydBalanceNum;
+        toast.error(`余额不足，还需要 ${shortfall.toFixed(2)} YD`);
         setIsPurchasing(false);
         return false;
       }
@@ -75,9 +79,9 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
       if (!hasEnoughAllowance) {
         // 3. 如果授权不够，先进行授权
         setIsApproving(true);
-        const courseContractAddress = COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS;
+        const courseContractAddress = getCourseContractAddress(chainId);
         
-        toast.info(`需要授权 ${price} YD 给课程合约`, { duration: 3000 });
+        toast.info(`正在授权 ${price} YD 给课程合约...`, { duration: 3000 });
         
         const approveSuccess = await approveToken(courseContractAddress, price);
         setIsApproving(false);
@@ -87,6 +91,7 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
           return false;
         }
         
+        toast.success('授权成功！正在执行购买...');
         // 授权成功后等待一小段时间确保授权生效
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
@@ -105,9 +110,11 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
         });
 
         // 6. 刷新余额
-        await refetchYdBalance();
+        setTimeout(() => {
+          refetchYdBalance();
+        }, 3000);
         
-        toast.success('课程购买成功！', { id: 'purchasing' });
+        toast.success('课程购买成功！现在可以学习了 🎉', { id: 'purchasing', duration: 5000 });
         return true;
         
       } catch (purchaseError) {
@@ -129,6 +136,7 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
   }, [
     address, 
     ydBalance, 
+    chainId,
     checkAllowance, 
     approveToken, 
     enrollInCourse, 
