@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { Link, useNavigate } from 'react-router-dom';
-import { formatEther } from 'viem';
 import { 
   BookOpen, 
   Users, 
@@ -14,8 +13,7 @@ import {
   Coins,
   AlertCircle 
 } from 'lucide-react';
-import { Course } from '../../types/course';
-import { useMyCoursesContract, useCourseContract } from '../../hooks/useCourseContract';
+import { Course, useMyCoursesContract, useCourseContract } from '../../hooks/useCourseContract';
 
 const MyCourses: React.FC = () => {
   const navigate = useNavigate();
