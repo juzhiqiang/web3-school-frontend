@@ -13,7 +13,8 @@ import {
   Coins,
   AlertCircle 
 } from 'lucide-react';
-import { Course, useMyCoursesContract, useCourseContract } from '../../hooks/useCourseContract';
+import { Course } from '../../types/courseTypes';
+import { useMyCoursesContract, useCourseContract } from '../../hooks/useCourseContract';
 
 const MyCourses: React.FC = () => {
   const navigate = useNavigate();
