@@ -49,6 +49,20 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [purchaseStep, setPurchaseStep] = useState<'idle' | 'checking' | 'approving' | 'purchasing' | 'completed' | 'error'>('idle')
 
+  // 工具函数
+  const formatPrice = (price: string) => {
+    return formatYiDengAmount(price, 2)
+  }
+
+  const hasEnoughBalance = () => {
+    if (!ydBalance || !courseData) return false
+    return parseFloat(ydBalance) >= parseFloat(courseData.price)
+  }
+
+  const canAccessLesson = (lesson: any) => {
+    return lesson?.isPreview || isEnrolled
+  }
+
   // 加载课程数据
   useEffect(() => {
     const loadCourseData = async () => {
@@ -123,7 +137,7 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
     const priceNum = parseFloat(courseData.price)
     
     if (ydBalanceNum < priceNum) {
-      toast.error(`余额不足，需要 ${formatYiDengAmount(courseData.price)} YD，当前余额 ${formatYiDengAmount(ydBalance || '0')} YD`)
+      toast.error(`余额不足，需要 ${formatPrice(courseData.price)} YD，当前余额 ${formatPrice(ydBalance || '0')} YD`)
       return
     }
 
@@ -154,19 +168,6 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
         setPurchaseStep('idle')
       }, 5000)
     }
-  }
-
-  const canAccessLesson = (lesson: any) => {
-    return lesson?.isPreview || isEnrolled
-  }
-
-  const formatPrice = (price: string) => {
-    return formatYiDengAmount(price, 2)
-  }
-
-  const hasEnoughBalance = () => {
-    if (!ydBalance || !courseData) return false
-    return parseFloat(ydBalance) >= parseFloat(courseData.price)
   }
 
   if (isLoading) {
@@ -624,15 +625,6 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
       </div>
     </div>
   )
-}
-
-const formatPrice = (price: string) => {
-  return formatYiDengAmount(price, 2)
-}
-
-const hasEnoughBalance = () => {
-  if (!ydBalance || !courseData) return false
-  return parseFloat(ydBalance) >= parseFloat(courseData.price)
 }
 
 export default CourseDetails
