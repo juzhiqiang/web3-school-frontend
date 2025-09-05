@@ -23,7 +23,7 @@ export const TOKEN_SWAP_CONFIG = {
   // 手续费相关
   BASIS_POINTS: 10000,
 
-  // 支持的网络（移除Hardhat）
+  // 支持的网络
   SUPPORTED_CHAINS: [1, 11155111, 1337], // mainnet, sepolia, ganache
 
   // 本地网络配置
@@ -61,16 +61,12 @@ export const ERROR_MESSAGES = {
 
 // 获取当前网络的合约地址
 export const getContractAddress = (chainId: number): string => {
-  console.log(`获取网络 ${chainId} 的合约地址...`);
-
   // 处理Ganache本地网络的特殊情况
   if (chainId === 1337) {
     const localAddress = import.meta.env.VITE_LOCAL_CONTRACT_ADDRESS;
     if (localAddress) {
-      console.log(`使用本地合约地址: ${localAddress}`);
       return localAddress;
     }
-    console.log("使用默认Ganache合约地址");
   }
 
   const address =
@@ -79,11 +75,9 @@ export const getContractAddress = (chainId: number): string => {
     ];
 
   if (!address) {
-    console.error(`不支持的网络: ${chainId}`);
     throw new Error(`不支持的网络: ${chainId}`);
   }
 
-  console.log(`网络 ${chainId} 合约地址: ${address}`);
   return address;
 };
 
@@ -104,30 +98,4 @@ export const getNetworkName = (chainId: number): string => {
     default:
       return `网络 ${chainId}`;
   }
-};
-
-// 调试工具函数
-export const debugContractInfo = (chainId: number) => {
-  console.group(`🔍 合约调试信息 - 网络 ${chainId}`);
-  console.log("网络名称:", getNetworkName(chainId));
-  console.log("是否本地网络:", isLocalNetwork(chainId));
-
-  try {
-    const contractAddress = getContractAddress(chainId);
-    console.log("合约地址:", contractAddress);
-    console.log("✅ 合约配置正常");
-  } catch (error) {
-    console.error("❌ 合约配置错误:", error);
-  }
-
-  // 显示环境变量（仅本地网络）
-  if (isLocalNetwork(chainId)) {
-    console.log(
-      "本地合约地址环境变量:",
-      import.meta.env.VITE_LOCAL_CONTRACT_ADDRESS
-    );
-    console.log("启用本地网络:", import.meta.env.VITE_ENABLE_LOCALHOST);
-  }
-
-  console.groupEnd();
 };
