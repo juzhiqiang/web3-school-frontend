@@ -38,8 +38,6 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
       const hasEnoughAllowance = allowanceNum >= priceNum;
       setNeedsApproval(!hasEnoughAllowance);
       
-      console.log(`授权检查: 当前授权 ${allowance} YD, 需要 ${price} YD, 是否足够: ${hasEnoughAllowance}`);
-      
       return hasEnoughAllowance;
     } catch (err) {
       console.error('检查授权额度失败:', err);
