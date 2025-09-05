@@ -44,6 +44,15 @@ export const useCourseContract = (): UseCourseContractResult => {
       // 学员完成课程奖励金额（给学员的奖励，不是创建者奖励）
       const courseCompletionRewardInWei = parseEther(YIDENG_REWARDS.COMPLETE_COURSE);
       
+      console.log('🚀 准备创建课程:', {
+        courseId: courseData.courseId,
+        title: courseData.title,
+        price: courseData.price,
+        priceInWei: priceInWei.toString(),
+        courseCompletionRewardInWei: courseCompletionRewardInWei.toString(),
+        creatorAddress: address
+      });
+      
       // 调用智能合约创建课程
       writeContract({
         address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
@@ -58,7 +67,7 @@ export const useCourseContract = (): UseCourseContractResult => {
         ],
       });
 
-      toast.loading('正在创建课程...', { id: 'create-course' });
+      toast.loading('正在创建课程和发放奖励...', { id: 'create-course' });
       
     } catch (err: any) {
       console.error('Create course error:', err);

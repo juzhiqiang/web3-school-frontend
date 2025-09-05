@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, Coins, RefreshCw } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useContractFunding } from '../../hooks/useContractFunding';
 
 const ContractFundingWarning: React.FC = () => {

@@ -428,44 +428,66 @@ function CourseListing() {
 
                   {/* 操作按钮区域 */}
                   <div className="space-y-2">
-                    {/* 如果需要授权且余额足够，显示授权按钮 */}
-                    {!isCreator && !isPurchased && canAfford(course.price) && needsApproval && (
+                    {/* 如果需要授权且余额足够，显示授权按钮和购买按钮在同一行 */}
+                    {!isCreator && !isPurchased && canAfford(course.price) && needsApproval ? (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={(e) => handleApprove(course, e)}
+                          disabled={approvingCourse === course.id}
+                          className="flex-1 py-2 px-4 rounded-md bg-yellow-500 text-white hover:bg-yellow-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                        >
+                          {approvingCourse === course.id ? (
+                            <div className="flex items-center justify-center space-x-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>授权中...</span>
+                            </div>
+                          ) : (
+                            `授权 ${formatPrice(course.price)} YD`
+                          )}
+                        </button>
+
+                        <button
+                          onClick={(e) => handleCourseAction(course, e)}
+                          disabled={
+                            !isConnected || 
+                            (!canUserAccessCourse(course) && !canAfford(course.price)) || 
+                            isCurrentlyPurchasing ||
+                            (!canUserAccessCourse(course) && canAfford(course.price) && needsApproval)
+                          }
+                          className={`flex-1 py-2 px-4 rounded-md transition-colors font-medium text-sm ${getButtonStyle(course)}`}
+                        >
+                          {isCurrentlyPurchasing && (isApproving || isPurchasing) ? (
+                            <div className="flex items-center justify-center space-x-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>{getButtonText(course)}</span>
+                            </div>
+                          ) : (
+                            getButtonText(course)
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      /* 单独的主操作按钮 */
                       <button
-                        onClick={(e) => handleApprove(course, e)}
-                        disabled={approvingCourse === course.id}
-                        className="w-full py-2 px-4 rounded-md bg-yellow-500 text-white hover:bg-yellow-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                        onClick={(e) => handleCourseAction(course, e)}
+                        disabled={
+                          !isConnected || 
+                          (!canUserAccessCourse(course) && !canAfford(course.price)) || 
+                          isCurrentlyPurchasing ||
+                          (!canUserAccessCourse(course) && canAfford(course.price) && needsApproval)
+                        }
+                        className={`w-full py-3 px-4 rounded-md transition-colors font-medium ${getButtonStyle(course)}`}
                       >
-                        {approvingCourse === course.id ? (
+                        {isCurrentlyPurchasing && (isApproving || isPurchasing) ? (
                           <div className="flex items-center justify-center space-x-2">
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>授权中...</span>
+                            <span>{getButtonText(course)}</span>
                           </div>
                         ) : (
-                          `授权 ${formatPrice(course.price)} YD`
+                          getButtonText(course)
                         )}
                       </button>
                     )}
-
-                    {/* 主操作按钮 */}
-                    <button
-                      onClick={(e) => handleCourseAction(course, e)}
-                      disabled={
-                        !isConnected || 
-                        (!canUserAccessCourse(course) && !canAfford(course.price)) || 
-                        isCurrentlyPurchasing ||
-                        (!canUserAccessCourse(course) && canAfford(course.price) && needsApproval)
-                      }
-                      className={`w-full py-3 px-4 rounded-md transition-colors font-medium ${getButtonStyle(course)}`}
-                    >
-                      {isCurrentlyPurchasing && (isApproving || isPurchasing) ? (
-                        <div className="flex items-center justify-center space-x-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span>{getButtonText(course)}</span>
-                        </div>
-                      ) : (
-                        getButtonText(course)
-                      )}
-                    </button>
                   </div>
 
                   {/* 余额不足时的额外提示 */}

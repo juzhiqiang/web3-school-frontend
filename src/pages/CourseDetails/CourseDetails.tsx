@@ -32,6 +32,7 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
   const [selectedLesson, setSelectedLesson] = useState(0)
   const [courseData, setCourseData] = useState<Course | null>(null)
   const [isEnrolled, setIsEnrolled] = useState(false)
+  const [isCreator, setIsCreator] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   // 工具函数
@@ -60,11 +61,19 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
 
         setCourseData(course)
         
-        // 检查是否已购买
+        // 检查是否已购买和是否为创建者
         if (address) {
           const purchased = hasPurchased(id, address)
+          const creator = course.instructorAddress?.toLowerCase() === address.toLowerCase()
+          
           setIsEnrolled(purchased)
-          console.log(`课程 ${id} 购买状态:`, purchased)
+          setIsCreator(creator)
+          
+          console.log(`课程 ${id} 状态:`, {
+            purchased,
+            creator,
+            canAccess: purchased || creator
+          })
         }
       } catch (error) {
         console.error('加载课程数据失败:', error)
@@ -170,9 +179,18 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
                     <Play className="w-8 h-8 text-blue-600" />
                   </button>
                 </div>
-                <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                  <CheckCircle className="w-4 h-4" />
-                  <span>已购买</span>
+                <div className="absolute top-4 right-4 flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium">
+                  {isCreator ? (
+                    <div className="bg-purple-500 text-white flex items-center space-x-1">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>我的课程</span>
+                    </div>
+                  ) : (
+                    <div className="bg-green-500 text-white flex items-center space-x-1">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>已购买</span>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -280,11 +298,23 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
             {/* 学习进度卡片 */}
             <div className="bg-white rounded-lg shadow-lg p-6 sticky top-6">
               <div className="text-center mb-6">
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                  <span className="text-2xl font-bold text-green-600">已购买</span>
-                </div>
-                <p className="text-gray-600">享受完整学习体验</p>
+                {isCreator ? (
+                  <>
+                    <div className="flex items-center justify-center space-x-2 mb-2">
+                      <CheckCircle className="w-6 h-6 text-purple-600" />
+                      <span className="text-2xl font-bold text-purple-600">我的课程</span>
+                    </div>
+                    <p className="text-gray-600">您是这门课程的创建者</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center space-x-2 mb-2">
+                      <CheckCircle className="w-6 h-6 text-green-600" />
+                      <span className="text-2xl font-bold text-green-600">已购买</span>
+                    </div>
+                    <p className="text-gray-600">享受完整学习体验</p>
+                  </>
+                )}
               </div>
 
               <div className="space-y-3 text-sm border-t pt-4">
@@ -351,8 +381,16 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
                   <span>总时长: {courseData.duration}</span>
                   <span>{lessons.length} 个课时</span>
                 </div>
-                <div className="mt-2 text-xs text-green-600 text-center bg-green-50 p-2 rounded">
-                  🎉 恭喜！您可以观看所有课程内容
+                <div className="mt-2 text-xs text-center p-2 rounded">
+                  {isCreator ? (
+                    <div className="text-purple-600 bg-purple-50">
+                      👑 作为创建者，您拥有完全访问权限
+                    </div>
+                  ) : (
+                    <div className="text-green-600 bg-green-50">
+                      🎉 恭喜！您可以观看所有课程内容
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

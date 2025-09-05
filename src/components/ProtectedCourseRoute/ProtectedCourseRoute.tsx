@@ -42,13 +42,21 @@ function ProtectedCourseRoute({ children }: ProtectedCourseRouteProps) {
         return
       }
 
+      // 检查用户是否为课程创建者
+      const isCreator = course.instructorAddress?.toLowerCase() === address.toLowerCase()
+      
       // 检查用户是否已购买课程
       const purchased = hasPurchased(id, address)
-      setHasAccess(purchased)
+      
+      // 用户可以访问如果是创建者或已购买
+      const canAccess = isCreator || purchased
+      setHasAccess(canAccess)
       setIsLoading(false)
 
-      if (!purchased) {
+      if (!canAccess) {
         toast.error('请先购买课程才能查看详情')
+      } else if (isCreator && !purchased) {
+        toast.success('欢迎访问您创建的课程')
       }
     }
 
