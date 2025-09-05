@@ -4,6 +4,7 @@ import { useWeb3 } from '../../contexts/Web3Context'
 import { useCourseContract, useMyCoursesContract } from '../../hooks/useCourseContract'
 import { getCourse } from '../../utils/courseStorage'
 import { User, Edit3, BookOpen, TrendingUp, Calendar, Star, Award, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
+import { ethers } from 'ethers'
 import type { Course } from '../../types/course'
 
 interface CourseData extends Course {
@@ -16,6 +17,18 @@ interface CourseData extends Course {
   }
 }
 
+// 用户资料接口
+interface UserProfile {
+  name: string
+  bio: string
+  avatar: string
+  email: string
+  address: string
+  signature: string
+  message: string
+  timestamp: number
+}
+
 function Profile() {
   const { isConnected, address, balance } = useWeb3()
   const navigate = useNavigate()
@@ -24,11 +37,12 @@ function Profile() {
   
   const [isEditing, setIsEditing] = useState(false)
   const [profileData, setProfileData] = useState({
-    name: 'Web3学习者',
-    bio: '对区块链技术和去中心化教育充满热情。',
+    name: '',
+    bio: '',
     avatar: '',
-    email: 'user@example.com'
+    email: ''
   })
+  const [isSigning, setIsSigning] = useState(false)
   
   // 课程数据状态
   const [createdCourses, setCreatedCourses] = useState<CourseData[]>([])
@@ -44,6 +58,72 @@ function Profile() {
     totalStudents: 0,
     totalRevenue: 0
   })
+
+  // 从localStorage加载用户资料
+  const loadUserProfile = () => {
+    if (!address) return
+    
+    const key = `userProfile_${address.toLowerCase()}`
+    const stored = localStorage.getItem(key)
+    
+    if (stored) {
+      try {
+        const userProfile: UserProfile = JSON.parse(stored)
+        
+        // 验证签名
+        const isValid = verifyProfileSignature(userProfile)
+        if (isValid) {
+          setProfileData({
+            name: userProfile.name,
+            bio: userProfile.bio,
+            avatar: userProfile.avatar,
+            email: userProfile.email
+          })
+        } else {
+          console.warn('用户资料签名验证失败，使用默认资料')
+          setDefaultProfile()
+        }
+      } catch (error) {
+        console.error('解析用户资料失败:', error)
+        setDefaultProfile()
+      }
+    } else {
+      setDefaultProfile()
+    }
+  }
+  
+  // 设置默认资料
+  const setDefaultProfile = () => {
+    setProfileData({
+      name: address ? `用户${address.slice(-4)}` : 'Web3学习者',
+      bio: '对区块链技术和去中心化教育充满热情。',
+      avatar: '',
+      email: ''
+    })
+  }
+  
+  // 验证资料签名
+  const verifyProfileSignature = (userProfile: UserProfile): boolean => {
+    try {
+      const recoveredAddress = ethers.verifyMessage(userProfile.message, userProfile.signature)
+      return recoveredAddress.toLowerCase() === userProfile.address.toLowerCase()
+    } catch (error) {
+      console.error('签名验证失败:', error)
+      return false
+    }
+  }
+  
+  // 生成签名消息
+  const createProfileMessage = (profile: typeof profileData, address: string, timestamp: number): string => {
+    return `更新用户资料确认\n\n用户名: ${profile.name}\n简介: ${profile.bio}\n邮箱: ${profile.email}\n地址: ${address}\n时间戳: ${timestamp}`
+  }
+
+  // 加载用户资料
+  useEffect(() => {
+    if (address) {
+      loadUserProfile()
+    }
+  }, [address])
 
   // 加载我创建的课程 - 纯链上数据
   const loadCreatedCourses = async () => {
@@ -210,9 +290,67 @@ function Profile() {
     )
   }
 
-  const handleSave = () => {
-    setIsEditing(false)
-    console.log('保存个人资料:', profileData)
+  const handleSave = async () => {
+    if (!address) {
+      alert('请先连接钱包')
+      return
+    }
+    
+    // 检查必填字段
+    if (!profileData.name.trim()) {
+      alert('请输入用户名')
+      return
+    }
+    
+    setIsSigning(true)
+    
+    try {
+      if (window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const signer = await provider.getSigner()
+        
+        const timestamp = Date.now()
+        const message = createProfileMessage(profileData, address, timestamp)
+        
+        // 请求用户签名
+        const signature = await signer.signMessage(message)
+        
+        // 创建完整的用户资料对象
+        const userProfile: UserProfile = {
+          name: profileData.name.trim(),
+          bio: profileData.bio.trim(),
+          avatar: profileData.avatar,
+          email: profileData.email.trim(),
+          address: address,
+          signature: signature,
+          message: message,
+          timestamp: timestamp
+        }
+        
+        // 保存到localStorage
+        const key = `userProfile_${address.toLowerCase()}`
+        localStorage.setItem(key, JSON.stringify(userProfile))
+        
+        console.log('✅ 用户资料签名并保存成功')
+        setIsEditing(false)
+        
+        // 显示成功消息
+        alert('个人资料更新成功！')
+      }
+    } catch (error) {
+      console.error('保存用户资料失败:', error)
+      if (error instanceof Error) {
+        if (error.message.includes('User denied')) {
+          alert('签名被取消，资料未保存')
+        } else {
+          alert('保存失败，请重试')
+        }
+      } else {
+        alert('保存失败，请重试')
+      }
+    } finally {
+      setIsSigning(false)
+    }
   }
 
   // 课程卡片组件
@@ -298,14 +436,19 @@ function Profile() {
                 </div>
                 <div>
                   {isEditing ? (
-                    <input
-                      type="text"
-                      value={profileData.name}
-                      onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                      className="text-2xl font-bold bg-transparent border-b-2 border-white text-white placeholder-gray-200"
-                    />
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={profileData.name}
+                        onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                        className="text-2xl font-bold bg-transparent border-b-2 border-white text-white placeholder-gray-200 w-full"
+                        placeholder="请输入用户名"
+                        maxLength={50}
+                      />
+                      <p className="text-xs opacity-75">修改后需要MetaMask签名验证</p>
+                    </div>
                   ) : (
-                    <h1 className="text-2xl font-bold">{profileData.name}</h1>
+                    <h1 className="text-2xl font-bold">{profileData.name || '未设置用户名'}</h1>
                   )}
                   <p className="opacity-90">
                     {address?.slice(0, 6)}...{address?.slice(-4)}
@@ -314,10 +457,20 @@ function Profile() {
               </div>
               <button
                 onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-md flex items-center space-x-2"
+                disabled={isSigning}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-md flex items-center space-x-2 disabled:opacity-50"
               >
-                <Edit3 className="w-4 h-4" />
-                <span>{isEditing ? '保存' : '编辑'}</span>
+                {isSigning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>签名中...</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="w-4 h-4" />
+                    <span>{isEditing ? '保存' : '编辑'}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -330,14 +483,19 @@ function Profile() {
                 <div>
                   <h3 className="text-lg font-semibold mb-3">关于我</h3>
                   {isEditing ? (
-                    <textarea
-                      value={profileData.bio}
-                      onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md resize-none"
-                      rows={3}
-                    />
+                    <div className="space-y-2">
+                      <textarea
+                        value={profileData.bio}
+                        onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md resize-none"
+                        rows={3}
+                        placeholder="介绍一下自己..."
+                        maxLength={200}
+                      />
+                      <p className="text-xs text-gray-500">{profileData.bio.length}/200 字符</p>
+                    </div>
                   ) : (
-                    <p className="text-gray-600">{profileData.bio}</p>
+                    <p className="text-gray-600">{profileData.bio || '这个人很懒，什么都没留下...'}</p>
                   )}
                 </div>
 
@@ -349,11 +507,27 @@ function Profile() {
                       value={profileData.email}
                       onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
                       className="w-full px-3 py-2 border rounded-md"
+                      placeholder="your@email.com"
                     />
                   ) : (
-                    <p className="text-gray-600">{profileData.email}</p>
+                    <p className="text-gray-600">{profileData.email || '未设置邮箱'}</p>
                   )}
                 </div>
+
+                {/* 签名状态提示 */}
+                {isEditing && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-blue-800 mb-1">MetaMask签名验证</h4>
+                        <p className="text-sm text-blue-600">
+                          保存个人资料需要通过MetaMask签名验证身份。签名不会消耗任何费用，只是用于验证您的身份。
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 我的课程部分 */}
                 <div>
