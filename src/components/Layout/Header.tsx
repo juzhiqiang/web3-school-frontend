@@ -24,11 +24,14 @@ const Header: React.FC = () => {
   const requestLoginSignature = async (address: string) => {
     try {
       if (window.ethereum) {
-        const provider = new ethers.providers.Web3Provider(window.ethereum)
-        const signer = provider.getSigner()
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const signer = await provider.getSigner()
         
         // 生成待签名消息
-        const message = `I am requesting to change my name. User address: ${address}`
+        const message = `
+        请求修改用户资料，当前用户地址: ${address}
+        时间戳: ${Date.now()}
+        `
         
         try {
           // 请求用户签名
@@ -104,8 +107,8 @@ const Header: React.FC = () => {
     setIsLoading(true)
     try {
       if (window.ethereum) {
-        const provider = new ethers.providers.Web3Provider(window.ethereum)
-        const signer = provider.getSigner()
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const signer = await provider.getSigner()
         
         const timestamp = Date.now()
         const message = createNameMessage(newName.trim(), address, timestamp)
