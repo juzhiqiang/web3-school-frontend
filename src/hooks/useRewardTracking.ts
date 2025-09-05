@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAccount, useReadContract, useWatchContractEvent, usePublicClient } from 'wagmi';
-import { formatEther, getContract } from 'viem';
+import { formatUnits, getContract } from 'viem';
 import { COURSE_CONTRACT_CONFIG } from '../config/courseContract';
+import { YIDENG_TOKEN_CONFIG } from '../config/yidengToken';
 
 interface RewardEvent {
   instructor: string;
@@ -66,13 +67,13 @@ export const useRewardTracking = () => {
         const { instructor, uuid, rewardAmount } = log.args as {
           instructor: string;
           uuid: string;
-          rewardAmount: bigint;
+          rewardAmount: any; // wagmi 已处理过的值
         };
 
         return {
           instructor,
           uuid,
-          rewardAmount: formatEther(rewardAmount),
+          rewardAmount: rewardAmount?.toString() || '0',
           transactionHash: log.transactionHash,
           blockNumber: Number(log.blockNumber),
           timestamp: Date.now() - (Number(currentBlock - log.blockNumber) * 12000), // 估算时间戳
@@ -118,20 +119,13 @@ export const useRewardTracking = () => {
           const { instructor, uuid, rewardAmount } = log.args as {
             instructor: string;
             uuid: string;
-            rewardAmount: bigint;
+            rewardAmount: any; // wagmi 已处理过的值
           };
-          
-          console.log('事件参数解析:', {
-            instructor,
-            uuid,
-            rewardAmount: rewardAmount.toString(),
-            formattedAmount: formatEther(rewardAmount)
-          });
           
           const newRewardEvent: RewardEvent = {
             instructor,
             uuid,
-            rewardAmount: formatEther(rewardAmount),
+            rewardAmount: rewardAmount?.toString() || '0',
             transactionHash: log.transactionHash,
             blockNumber: Number(log.blockNumber),
             timestamp: Date.now(),
@@ -157,7 +151,7 @@ export const useRewardTracking = () => {
           
           // 如果是当前用户的奖励，显示通知
           if (instructor.toLowerCase() === address?.toLowerCase()) {
-            console.log(`🎉 恭喜！您获得了 ${formatEther(rewardAmount)} 一灯币课程发布奖励！`);
+            console.log(`🎉 恭喜！您获得了 ${rewardAmount?.toString() || '0'} 一灯币课程发布奖励！`);
           }
         } else {
           console.warn('⚠️ 事件参数为空:', log);
@@ -204,6 +198,6 @@ export const useRewardTracking = () => {
     isLoadingHistory,
     fetchRecentRewardEvents, // 暴露手动刷新功能
     ydTokenAddress: ydTokenAddress as string | undefined,
-    contractTokenBalance: contractTokenBalance ? formatEther(contractTokenBalance as bigint) : '0',
+    contractTokenBalance: contractTokenBalance ? formatUnits(contractTokenBalance as bigint, YIDENG_TOKEN_CONFIG.TOKEN_DECIMALS) : '0',
   };
 };

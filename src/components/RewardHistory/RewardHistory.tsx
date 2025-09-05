@@ -7,7 +7,6 @@ import type { OnChainRewardRecord } from '../../hooks/useOnChainRewards';
 const RewardHistory: React.FC = () => {
   const { address } = useAccount();
   const { rewards, stats, loading, error, refreshRewards } = useOnChainRewards();
-
   if (!address) {
     return null;
   }

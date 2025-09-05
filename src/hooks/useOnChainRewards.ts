@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
-import { formatEther } from 'viem';
 import { COURSE_CONTRACT_CONFIG } from '../config/courseContract';
 
 // 链上奖励记录接口
@@ -43,6 +42,7 @@ export const useOnChainRewards = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+
   const fetchRewards = async () => {
     if (!address || !publicClient) return;
 
@@ -72,7 +72,6 @@ export const useOnChainRewards = () => {
           fromBlock: 0n,
           toBlock: 'latest'
         });
-
         for (const log of createCourseRewardLogs) {
           const { instructor, uuid, rewardAmount } = log.args;
           
@@ -83,7 +82,7 @@ export const useOnChainRewards = () => {
             id: `${log.transactionHash}-${log.logIndex}`,
             userAddress: instructor as string,
             type: 'create_course',
-            amount: formatEther(rewardAmount as bigint),
+            amount: rewardAmount?.toString() || '0',
             description: `创建课程奖励 - 课程ID: ${(uuid as string).slice(0, 8)}...`,
             courseId: uuid as string,
             transactionHash: log.transactionHash,
@@ -126,7 +125,7 @@ export const useOnChainRewards = () => {
             id: `${log.transactionHash}-${log.logIndex}`,
             userAddress: student as string,
             type: 'complete_course',
-            amount: formatEther(rewardAmount as bigint),
+            amount: rewardAmount?.toString() || '0',
             description: `完成课程奖励 - 课程ID: ${(courseId as string).slice(0, 8)}...`,
             courseId: courseId as string,
             transactionHash: log.transactionHash,
