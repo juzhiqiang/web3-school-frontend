@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Clock, Users, Star, BookOpen, Coins, Shield, CreditCard, CheckCircle, Lock } from 'lucide-react'
 import { getAllCourses, hasPurchased } from '../../utils/courseStorage'
-import { initializeSampleCourses } from '../../utils/courseDataInit'
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useCoursePurchase } from '../../hooks/useCoursePurchase'
 import type { Course } from '../../types/courseTypes'
@@ -40,9 +39,6 @@ function CourseListing() {
     const loadCourses = async () => {
       setIsLoading(true)
       try {
-        // 初始化示例课程数据（如果本地没有数据的话）
-        initializeSampleCourses()
-        
         // 获取本地存储的所有课程
         const cachedCourses = getAllCourses()
         setCourses(cachedCourses)
