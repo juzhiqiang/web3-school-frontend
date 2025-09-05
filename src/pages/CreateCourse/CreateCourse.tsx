@@ -46,7 +46,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, courseId, 
   if (!isOpen) return null;
 
   const handleGoToMyCourses = () => {
-    navigate('/profile/courses');
+    navigate(`/course/${courseId}`);
     onClose();
   };
 
@@ -84,7 +84,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, courseId, 
               onClick={handleGoToMyCourses}
               className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              查看我的课程
+              查看课程详情
             </button>
             <button
               onClick={onClose}

@@ -124,21 +124,24 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
       title: '课程介绍', 
       duration: '15分钟', 
       description: '了解课程内容和学习目标',
-      isPreview: true 
+      isPreview: true,
+      videoUrl: courseData.lessons?.[0]?.videoUrl // 使用实际的视频URL，如果存在的话
     },
     { 
       id: '2', 
       title: '基础理论', 
       duration: '45分钟', 
       description: '学习核心理论知识',
-      isPreview: false 
+      isPreview: false,
+      videoUrl: courseData.lessons?.[1]?.videoUrl
     },
     { 
       id: '3', 
       title: '实践应用', 
       duration: '60分钟', 
       description: '动手实践项目',
-      isPreview: false 
+      isPreview: false,
+      videoUrl: courseData.lessons?.[2]?.videoUrl
     }
   ]
 
@@ -164,21 +167,36 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
             {/* 视频播放器区域 */}
             <div className="bg-white rounded-lg shadow-lg overflow-hidden">
               <div className="bg-black aspect-video relative group">
-                <img 
-                  src={courseData.thumbnailHash || `https://via.placeholder.com/800x450?text=${encodeURIComponent(courseData.title)}`}
-                  alt={courseData.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                  <button 
-                    className="bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 transition-all transform hover:scale-110"
-                    onClick={() => {
-                      toast.success('开始播放课程视频')
+                {lessons[selectedLesson]?.videoUrl ? (
+                  <video 
+                    key={lessons[selectedLesson].id} // Force re-render when lesson changes
+                    src={lessons[selectedLesson].videoUrl}
+                    poster={courseData.thumbnailHash || `https://via.placeholder.com/800x450?text=${encodeURIComponent(lessons[selectedLesson].title)}`}
+                    className="w-full h-full object-cover"
+                    controls
+                    onPlay={() => {
+                      toast.success(`正在播放：${lessons[selectedLesson].title}`)
                     }}
-                  >
-                    <Play className="w-8 h-8 text-blue-600" />
-                  </button>
-                </div>
+                  />
+                ) : (
+                  <>
+                    <img 
+                      src={courseData.thumbnailHash || `https://via.placeholder.com/800x450?text=${encodeURIComponent(lessons[selectedLesson]?.title || courseData.title)}`}
+                      alt={lessons[selectedLesson]?.title || courseData.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                      <button 
+                        className="bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 transition-all transform hover:scale-110"
+                        onClick={() => {
+                          toast.info(`${lessons[selectedLesson]?.title || '当前课程'} 暂无视频内容`)
+                        }}
+                      >
+                        <Play className="w-8 h-8 text-blue-600" />
+                      </button>
+                    </div>
+                  </>
+                )}
                 <div className="absolute top-4 right-4 flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium">
                   {isCreator ? (
                     <div className="bg-purple-500 text-white flex items-center space-x-1">
@@ -355,17 +373,32 @@ function CourseDetails({ preview, learn, details }: CourseDetailsProps) {
                     }`}
                     onClick={() => {
                       setSelectedLesson(index)
-                      toast.success(`正在播放：${lesson.title}`)
+                      if (lesson.videoUrl) {
+                        toast.success(`切换到课程：${lesson.title}`)
+                      } else {
+                        toast.info(`切换到课程：${lesson.title}（暂无视频）`)
+                      }
                     }}
                   >
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
-                        <Play className="w-5 h-5 text-blue-500" />
+                        {lesson.videoUrl ? (
+                          <Play className="w-5 h-5 text-blue-500" />
+                        ) : (
+                          <BookOpen className="w-5 h-5 text-gray-400" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate text-gray-900">
-                          {lesson.title}
-                        </p>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-medium truncate text-gray-900">
+                            {lesson.title}
+                          </p>
+                          {lesson.videoUrl && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                              视频
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-500">{lesson.duration}</p>
                       </div>
                     </div>
