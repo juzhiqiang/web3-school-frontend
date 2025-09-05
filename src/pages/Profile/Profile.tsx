@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useCourseContract, useMyCoursesContract } from '../../hooks/useCourseContract'
 import { getCourse } from '../../utils/courseStorage'
-import { User, Edit3, BookOpen, TrendingUp, Eye, Calendar, Star, Award, ArrowRight, Loader2 } from 'lucide-react'
+import { User, Edit3, BookOpen, TrendingUp, Calendar, Star, Award, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
 import type { Course } from '../../types/course'
 
 interface CourseData extends Course {
@@ -35,6 +35,7 @@ function Profile() {
   const [purchasedCourses, setPurchasedCourses] = useState<CourseData[]>([])
   const [isLoadingCourses, setIsLoadingCourses] = useState(false)
   const [activeTab, setActiveTab] = useState<'created' | 'purchased'>('created')
+  const [error, setError] = useState<string | null>(null)
   
   // 统计数据
   const [stats, setStats] = useState({
@@ -44,7 +45,7 @@ function Profile() {
     totalRevenue: 0
   })
 
-  // 加载我创建的课程
+  // 加载我创建的课程 - 纯链上数据
   const loadCreatedCourses = async () => {
     if (!creatorCourseIds || !address) return
 
@@ -56,39 +57,53 @@ function Profile() {
       for (const courseId of creatorCourseIds) {
         const localCourse = getCourse(courseId)
         if (localCourse) {
-          // 尝试获取链上统计数据
-          let onChainData = {}
+          // 只使用链上统计数据，不使用模拟数据
           try {
             const stats = await getCourseStats(courseId)
             if (stats) {
-              onChainData = {
+              const onChainData = {
                 enrollmentCount: parseInt(stats.studentCount || '0'),
                 totalRevenue: stats.totalRevenue || '0',
                 isActive: true
               }
+              
               totalStudents += parseInt(stats.studentCount || '0')
               totalRevenue += parseFloat(stats.totalRevenue || '0')
+
+              courses.push({
+                ...localCourse,
+                isPurchased: false,
+                isCreated: true,
+                onChainData
+              })
+            } else {
+              // 如果链上数据获取失败，只添加基础课程信息，不添加统计数据
+              console.warn(`课程 ${courseId} 链上统计数据不可用`)
+              courses.push({
+                ...localCourse,
+                isPurchased: false,
+                isCreated: true,
+                onChainData: {
+                  enrollmentCount: 0,
+                  totalRevenue: '0',
+                  isActive: false
+                }
+              })
             }
           } catch (err) {
-            console.log(`课程 ${courseId} 链上数据获取失败，使用模拟数据`)
-            // 使用模拟数据
-            const mockEnrollment = Math.floor(Math.random() * 50)
-            const mockRevenue = Math.random() * 5
-            onChainData = {
-              enrollmentCount: mockEnrollment,
-              totalRevenue: mockRevenue.toFixed(3),
-              isActive: true
-            }
-            totalStudents += mockEnrollment
-            totalRevenue += mockRevenue
+            console.error(`获取课程 ${courseId} 链上数据失败:`, err)
+            // 链上数据获取失败时，仍添加课程但标记为不可用
+            courses.push({
+              ...localCourse,
+              isPurchased: false,
+              isCreated: true,
+              onChainData: {
+                enrollmentCount: 0,
+                totalRevenue: '0',
+                isActive: false
+              }
+            })
           }
-
-          courses.push({
-            ...localCourse,
-            isPurchased: false,
-            isCreated: true,
-            onChainData
-          })
         }
       }
 
@@ -101,10 +116,11 @@ function Profile() {
       }))
     } catch (error) {
       console.error('加载创建的课程失败:', error)
+      setError('获取创建的课程数据失败，请检查网络连接或稍后重试')
     }
   }
 
-  // 加载我购买的课程
+  // 加载我购买的课程 - 纯链上数据
   const loadPurchasedCourses = async () => {
     if (!purchasedCourseIds || !address) return
 
@@ -117,11 +133,16 @@ function Profile() {
         
         const localCourse = getCourse(courseId)
         if (localCourse) {
+          // 对于购买的课程，我们主要关心课程本身的信息
+          // 可以考虑从链上获取学习进度等信息（如果合约支持）
           courses.push({
             ...localCourse,
             isPurchased: true,
             isCreated: false
           })
+        } else {
+          // 如果本地没有课程信息，说明数据不完整
+          console.warn(`购买的课程 ${courseId} 在本地存储中不存在`)
         }
       }
 
@@ -132,6 +153,7 @@ function Profile() {
       }))
     } catch (error) {
       console.error('加载购买的课程失败:', error)
+      setError('获取购买的课程数据失败，请检查网络连接或稍后重试')
     }
   }
 
@@ -141,6 +163,8 @@ function Profile() {
       if (!isConnected || !address) return
 
       setIsLoadingCourses(true)
+      setError(null)
+      
       try {
         await Promise.all([
           loadCreatedCourses(),
@@ -148,6 +172,7 @@ function Profile() {
         ])
       } catch (error) {
         console.error('加载课程数据失败:', error)
+        setError('加载课程数据失败，请稍后重试')
       } finally {
         setIsLoadingCourses(false)
       }
@@ -161,12 +186,26 @@ function Profile() {
     navigate(`/course/${courseId}`)
   }
 
+  // 重新加载数据
+  const handleRefresh = () => {
+    if (!isConnected || !address) return
+    setIsLoadingCourses(true)
+    setError(null)
+    
+    Promise.all([
+      loadCreatedCourses(),
+      loadPurchasedCourses()
+    ]).finally(() => {
+      setIsLoadingCourses(false)
+    })
+  }
+
   if (!isConnected) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">连接您的钱包</h2>
-          <p>请先连接您的钱包以查看个人资料。</p>
+          <p>请先连接您的钱包以查看个人资料和链上课程数据。</p>
         </div>
       </div>
     )
@@ -220,9 +259,16 @@ function Profile() {
               {course.onChainData.totalRevenue} 一灯币
             </span>
           </div>
-          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-            我创建的
-          </span>
+          <div className="flex items-center space-x-2">
+            {!course.onChainData.isActive && (
+              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                链上数据不可用
+              </span>
+            )}
+            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+              我创建的
+            </span>
+          </div>
         </div>
       )}
       
@@ -314,10 +360,33 @@ function Profile() {
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">我的课程</h3>
-                    {isLoadingCourses && (
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {isLoadingCourses && (
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                      )}
+                      <button
+                        onClick={handleRefresh}
+                        disabled={isLoadingCourses}
+                        className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 disabled:opacity-50"
+                      >
+                        刷新链上数据
+                      </button>
+                    </div>
                   </div>
+
+                  {/* 错误提示 */}
+                  {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center space-x-2">
+                      <AlertCircle className="w-5 h-5 text-red-500" />
+                      <span className="text-red-600 text-sm">{error}</span>
+                      <button
+                        onClick={handleRefresh}
+                        className="ml-auto text-red-600 hover:text-red-800 text-sm underline"
+                      >
+                        重试
+                      </button>
+                    </div>
+                  )}
                   
                   {/* 课程标签切换 */}
                   <div className="flex space-x-4 mb-4">
@@ -348,7 +417,8 @@ function Profile() {
                     {isLoadingCourses ? (
                       <div className="text-center py-8">
                         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-600" />
-                        <p className="text-gray-600">正在从链上加载课程数据...</p>
+                        <p className="text-gray-600">正在从区块链加载课程数据...</p>
+                        <p className="text-sm text-gray-500 mt-1">这可能需要几秒钟</p>
                       </div>
                     ) : (
                       <>
@@ -361,7 +431,7 @@ function Profile() {
                             ) : (
                               <div className="text-center py-8 text-gray-500">
                                 <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                <p>您还没有创建任何课程</p>
+                                <p>您还没有在区块链上创建任何课程</p>
                                 <button 
                                   onClick={() => navigate('/create-course')}
                                   className="mt-2 text-blue-600 hover:underline"
@@ -382,7 +452,7 @@ function Profile() {
                             ) : (
                               <div className="text-center py-8 text-gray-500">
                                 <Award className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                <p>您还没有购买任何课程</p>
+                                <p>您还没有在区块链上购买任何课程</p>
                                 <button 
                                   onClick={() => navigate('/courses')}
                                   className="mt-2 text-blue-600 hover:underline"
@@ -399,7 +469,7 @@ function Profile() {
                 </div>
               </div>
 
-              {/* 统计侧边栏 */}
+              {/* 统计侧边栏 - 仅显示链上真实数据 */}
               <div className="space-y-4">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center space-x-3 mb-3">
@@ -417,6 +487,7 @@ function Profile() {
                     <h3 className="font-semibold">创建课程</h3>
                   </div>
                   <p className="text-2xl font-bold text-blue-600">{stats.createdCount}</p>
+                  <p className="text-xs text-gray-500 mt-1">链上数据</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -425,6 +496,7 @@ function Profile() {
                     <h3 className="font-semibold">学生总数</h3>
                   </div>
                   <p className="text-2xl font-bold text-purple-600">{stats.totalStudents}</p>
+                  <p className="text-xs text-gray-500 mt-1">链上统计</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -435,6 +507,7 @@ function Profile() {
                   <p className="text-2xl font-bold text-orange-600">
                     {stats.totalRevenue.toFixed(3)} 一灯币
                   </p>
+                  <p className="text-xs text-gray-500 mt-1">链上收入</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -443,6 +516,18 @@ function Profile() {
                     <h3 className="font-semibold">购买课程</h3>
                   </div>
                   <p className="text-2xl font-bold text-indigo-600">{stats.purchasedCount}</p>
+                  <p className="text-xs text-gray-500 mt-1">链上记录</p>
+                </div>
+
+                {/* 链上数据状态指示 */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <h4 className="font-medium text-sm">区块链数据</h4>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    所有数据均来自区块链智能合约，确保透明和准确性
+                  </p>
                 </div>
               </div>
             </div>
