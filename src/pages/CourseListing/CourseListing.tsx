@@ -23,6 +23,18 @@ function CourseListing() {
     approveCourse
   } = useCoursePurchase()
 
+  // 监听购买状态变化，清理本地状态
+  useEffect(() => {
+    // 如果不再是购买中状态，清理本地购买状态
+    if (!isPurchasing && purchasingCourse) {
+      const timer = setTimeout(() => {
+        setPurchasingCourse(null)
+      }, 2000) // 给一点时间让用户看到状态变化
+      
+      return () => clearTimeout(timer)
+    }
+  }, [isPurchasing, purchasingCourse])
+
   // 从本地缓存加载课程数据
   useEffect(() => {
     const loadCourses = async () => {
@@ -65,6 +77,17 @@ function CourseListing() {
     return hasPurchased(courseId, address)
   }
 
+  // 检查用户是否为课程创建者
+  const isUserCreator = (course: Course) => {
+    if (!address) return false
+    return course.instructorAddress?.toLowerCase() === address.toLowerCase()
+  }
+
+  // 检查用户是否可以访问课程（已购买或是创建者）
+  const canUserAccessCourse = (course: Course) => {
+    return hasUserPurchased(course.id) || isUserCreator(course)
+  }
+
   const getLevelColor = (level: string) => {
     switch (level) {
       case '初级': return 'bg-green-100 text-green-800'
@@ -95,8 +118,11 @@ function CourseListing() {
       return
     }
 
-    // 如果已购买，直接跳转到详情页
-    if (hasUserPurchased(course.id)) {
+    // 如果用户可以访问课程（已购买或是创建者），直接跳转到详情页
+    if (canUserAccessCourse(course)) {
+      if (isUserCreator(course)) {
+        toast.success('进入您创建的课程')
+      }
       window.location.href = `/course/${course.id}`
       return
     }
@@ -119,23 +145,26 @@ function CourseListing() {
     try {
       const success = await purchaseCourse(course.id, course.price)
       if (success) {
-        toast.success('课程购买成功！正在跳转到课程详情...')
-        setTimeout(() => {
-          window.location.href = `/course/${course.id}`
-        }, 1000)
+        // 交易已提交，但不要立即跳转
+        // 等待 useTransactionPurchase 中的成功监听器触发
+        toast.success('交易已提交，等待区块链确认...', { 
+          id: 'purchase-pending' 
+        })
       }
     } catch (error) {
       console.error('购买失败:', error)
-    } finally {
       setPurchasingCourse(null)
     }
+    // 注意：不在这里设置 setPurchasingCourse(null)，让它在交易确认后再清理
   }
 
   const getButtonText = (course: Course) => {
     const isPurchased = hasUserPurchased(course.id)
+    const isCreator = isUserCreator(course)
     const isCurrentlyPurchasing = purchasingCourse === course.id
 
     if (!isConnected) return '请先连接钱包'
+    if (isCreator) return '进入管理'
     if (isPurchased) return '进入学习'
     if (isCurrentlyPurchasing) {
       if (isApproving) return '授权中...'
@@ -152,9 +181,15 @@ function CourseListing() {
 
   const getButtonStyle = (course: Course) => {
     const isPurchased = hasUserPurchased(course.id)
+    const isCreator = isUserCreator(course)
     const isCurrentlyPurchasing = purchasingCourse === course.id
-    const isDisabled = !isConnected || (!isPurchased && !canAfford(course.price)) || isCurrentlyPurchasing
+    const canAccess = isPurchased || isCreator
+    const isDisabled = !isConnected || (!canAccess && !canAfford(course.price)) || isCurrentlyPurchasing
 
+    if (isCreator) {
+      return 'bg-purple-600 text-white hover:bg-purple-700'
+    }
+    
     if (isPurchased) {
       return 'bg-green-600 text-white hover:bg-green-700'
     }
@@ -243,7 +278,7 @@ function CourseListing() {
 
       {/* 课程统计 */}
       {courses.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-6 text-center">
             <div className="text-3xl font-bold mb-2">{courses.length}</div>
             <div className="text-blue-100">门课程</div>
@@ -256,9 +291,15 @@ function CourseListing() {
           </div>
           <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg p-6 text-center">
             <div className="text-3xl font-bold mb-2">
+              {address ? courses.filter(course => isUserCreator(course)).length : 0}
+            </div>
+            <div className="text-purple-100">我创建的</div>
+          </div>
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg p-6 text-center">
+            <div className="text-3xl font-bold mb-2">
               {address ? courses.filter(course => hasUserPurchased(course.id)).length : 0}
             </div>
-            <div className="text-purple-100">已购买</div>
+            <div className="text-orange-100">已购买</div>
           </div>
         </div>
       )}
@@ -266,6 +307,7 @@ function CourseListing() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {courses.map((course) => {
           const isPurchased = hasUserPurchased(course.id)
+          const isCreator = isUserCreator(course)
           const isCurrentlyPurchasing = purchasingCourse === course.id
           
           return (
@@ -282,8 +324,13 @@ function CourseListing() {
                   </span>
                 </div>
                 
-                {/* 购买状态标识 */}
-                {isPurchased ? (
+                {/* 课程状态标识 */}
+                {isCreator ? (
+                  <div className="absolute top-4 left-4 bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+                    <CheckCircle className="w-3 h-3" />
+                    <span>我的课程</span>
+                  </div>
+                ) : isPurchased ? (
                   <div className="absolute top-4 left-4 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
                     <CheckCircle className="w-3 h-3" />
                     <span>已购买</span>
@@ -382,7 +429,7 @@ function CourseListing() {
                   {/* 操作按钮区域 */}
                   <div className="space-y-2">
                     {/* 如果需要授权且余额足够，显示授权按钮 */}
-                    {!isPurchased && canAfford(course.price) && needsApproval && (
+                    {!isCreator && !isPurchased && canAfford(course.price) && needsApproval && (
                       <button
                         onClick={(e) => handleApprove(course, e)}
                         disabled={approvingCourse === course.id}
@@ -404,9 +451,9 @@ function CourseListing() {
                       onClick={(e) => handleCourseAction(course, e)}
                       disabled={
                         !isConnected || 
-                        (!isPurchased && !canAfford(course.price)) || 
+                        (!canUserAccessCourse(course) && !canAfford(course.price)) || 
                         isCurrentlyPurchasing ||
-                        (!isPurchased && canAfford(course.price) && needsApproval)
+                        (!canUserAccessCourse(course) && canAfford(course.price) && needsApproval)
                       }
                       className={`w-full py-3 px-4 rounded-md transition-colors font-medium ${getButtonStyle(course)}`}
                     >
@@ -422,7 +469,7 @@ function CourseListing() {
                   </div>
 
                   {/* 余额不足时的额外提示 */}
-                  {ydBalance && !canAfford(course.price) && !isPurchased && (
+                  {ydBalance && !canAfford(course.price) && !canUserAccessCourse(course) && (
                     <div className="text-center">
                       <p className="text-xs text-red-600">
                         还需要 {formatPrice((parseFloat(course.price) - parseFloat(ydBalance)).toString())} YD
@@ -431,7 +478,7 @@ function CourseListing() {
                   )}
 
                   {/* 授权提示 */}
-                  {!isPurchased && canAfford(course.price) && needsApproval && (
+                  {!canUserAccessCourse(course) && canAfford(course.price) && needsApproval && (
                     <div className="text-center">
                       <p className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
                         💡 需要先授权一灯币给课程合约才能购买

@@ -50,7 +50,7 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
           verified: true // 已通过区块链验证
         });
 
-        toast.success('课程购买成功！现在可以学习了 🎉', { 
+        toast.success('课程购买成功！正在跳转到课程详情...', { 
           id: 'purchase-success', 
           duration: 5000 
         });
@@ -59,6 +59,11 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
         setTimeout(() => {
           refetchYdBalance();
         }, 3000);
+
+        // 购买成功后跳转到课程详情页
+        setTimeout(() => {
+          window.location.href = `/course/${courseId}`;
+        }, 1500);
 
         // 清理状态
         setCurrentPurchase(null);
@@ -81,27 +86,34 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
         name: contractError.name
       });
       
-      let errorMessage = '购买交易失败';
+      let errorMessage = '支付失败';
       
       // 解析常见的错误类型
       if (contractError.message) {
         const message = contractError.message.toLowerCase();
-        if (message.includes('user rejected')) {
-          errorMessage = '用户拒绝了交易';
+        if (message.includes('user rejected') || message.includes('user denied')) {
+          errorMessage = '您取消了交易';
         } else if (message.includes('insufficient funds')) {
-          errorMessage = '账户余额不足';
+          errorMessage = '支付失败：账户余额不足';
         } else if (message.includes('gas')) {
-          errorMessage = '交易费不足或Gas估算失败';
+          errorMessage = '支付失败：交易费不足或Gas估算失败';
         } else if (message.includes('allowance')) {
-          errorMessage = '代币授权不足';
+          errorMessage = '支付失败：代币授权不足，请重新授权';
         } else if (message.includes('transfer amount exceeds')) {
-          errorMessage = '转账金额超过余额';
+          errorMessage = '支付失败：转账金额超过余额';
+        } else if (message.includes('execution reverted')) {
+          errorMessage = '支付失败：合约执行被拒绝';
+        } else if (message.includes('network')) {
+          errorMessage = '支付失败：网络连接问题';
         } else {
-          errorMessage = `交易失败: ${contractError.message}`;
+          errorMessage = `支付失败: ${contractError.message}`;
         }
       }
       
-      toast.error(errorMessage);
+      toast.error(errorMessage, { 
+        id: 'purchase-error',
+        duration: 8000 
+      });
       setError(errorMessage);
       setCurrentPurchase(null);
     }
@@ -136,7 +148,24 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
 
     } catch (err: any) {
       console.error('购买课程失败:', err);
-      const errorMessage = err?.message || '购买失败，请重试';
+      let errorMessage = '支付失败，请重试';
+      
+      // 解析错误类型
+      if (err?.message) {
+        const message = err.message.toLowerCase();
+        if (message.includes('user rejected') || message.includes('user denied')) {
+          errorMessage = '您取消了支付';
+        } else if (message.includes('insufficient funds')) {
+          errorMessage = '支付失败：余额不足';
+        } else if (message.includes('gas')) {
+          errorMessage = '支付失败：交易费估算失败';
+        } else if (message.includes('network')) {
+          errorMessage = '支付失败：网络连接问题';
+        } else {
+          errorMessage = `支付失败: ${err.message}`;
+        }
+      }
+      
       setError(errorMessage);
       setCurrentPurchase(null);
       toast.error(errorMessage, { id: 'purchase-tx' });

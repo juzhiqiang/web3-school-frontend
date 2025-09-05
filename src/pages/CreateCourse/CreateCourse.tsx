@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { v4 as uuidv4 } from 'uuid';
-import { PlusCircle, X, Upload, AlertCircle, CheckCircle, Coins } from 'lucide-react';
+import { PlusCircle, X, Upload, AlertCircle, CheckCircle, Coins, Image, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCourseContract } from '../../hooks/useCourseContract';
 import { YIDENG_REWARDS } from '../../config/contract';
@@ -31,6 +31,8 @@ interface CreateCourseFormData {
   duration: string;
   lessons: CourseLesson[];
   tags: string[];
+  thumbnailFile?: File;
+  thumbnailPreview?: string;
 }
 
 interface SuccessModalProps {
@@ -114,6 +116,8 @@ const CreateCourse: React.FC = () => {
     duration: '',
     lessons: [],
     tags: [],
+    thumbnailFile: undefined,
+    thumbnailPreview: undefined,
   });
 
   // UI状态
@@ -182,6 +186,53 @@ const CreateCourse: React.FC = () => {
     }));
   }, []);
 
+  // 处理封面图上传
+  const handleThumbnailUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // 文件类型验证
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('请选择 JPG、PNG 或 WebP 格式的图片');
+        return;
+      }
+
+      // 文件大小验证 (5MB)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast.error('图片大小不能超过 5MB');
+        return;
+      }
+
+      // 创建预览URL
+      const previewUrl = URL.createObjectURL(file);
+      
+      setFormData(prev => ({
+        ...prev,
+        thumbnailFile: file,
+        thumbnailPreview: previewUrl
+      }));
+
+      toast.success('封面图片上传成功');
+    }
+  }, []);
+
+  // 移除封面图
+  const removeThumbnail = useCallback(() => {
+    // 释放之前的预览URL
+    if (formData.thumbnailPreview) {
+      URL.revokeObjectURL(formData.thumbnailPreview);
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      thumbnailFile: undefined,
+      thumbnailPreview: undefined
+    }));
+
+    toast.success('已移除封面图片');
+  }, [formData.thumbnailPreview]);
+
   // 表单验证
   const validateForm = useCallback(() => {
     if (!formData.title.trim()) {
@@ -241,12 +292,29 @@ const CreateCourse: React.FC = () => {
       // 生成UUID作为课程ID
       const courseId = uuidv4();
       
+      // 处理封面图
+      let thumbnailHash = '';
+      if (formData.thumbnailFile) {
+        // 这里应该上传到 IPFS 或其他存储服务
+        // 为演示目的，我们使用 base64 编码存储在本地
+        const reader = new FileReader();
+        await new Promise((resolve) => {
+          reader.onload = () => {
+            thumbnailHash = reader.result as string;
+            resolve(null);
+          };
+          reader.readAsDataURL(formData.thumbnailFile);
+        });
+        console.log('封面图片已处理，大小:', thumbnailHash.length);
+      }
+      
       // 准备课程数据
       const courseData = {
         ...formData,
         id: courseId,
         instructorAddress: address,
         createdAt: new Date(),
+        thumbnailHash: thumbnailHash || `https://via.placeholder.com/800x450?text=${encodeURIComponent(formData.title)}&bg=4F46E5&color=white`,
       };
       
       // 使用工具类保存到localStorage
@@ -289,6 +357,11 @@ const CreateCourse: React.FC = () => {
       }
 
       // 重置表单
+      // 释放之前的预览URL
+      if (formData.thumbnailPreview) {
+        URL.revokeObjectURL(formData.thumbnailPreview);
+      }
+      
       setFormData({
         title: '',
         description: '',
@@ -297,9 +370,20 @@ const CreateCourse: React.FC = () => {
         duration: '',
         lessons: [],
         tags: [],
+        thumbnailFile: undefined,
+        thumbnailPreview: undefined,
       });
     }
   }, [isCreateSuccess, createdCourseId, address, recentRewards]);
+
+  // 组件卸载时清理预览URL
+  useEffect(() => {
+    return () => {
+      if (formData.thumbnailPreview) {
+        URL.revokeObjectURL(formData.thumbnailPreview);
+      }
+    };
+  }, [formData.thumbnailPreview]);
 
   if (!isConnected) {
     return (
@@ -451,6 +535,84 @@ const CreateCourse: React.FC = () => {
                   添加
                 </button>
               </div>
+            </div>
+
+            {/* 课程封面图 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                课程封面图
+              </label>
+              
+              {/* 如果没有上传图片，显示上传区域 */}
+              {!formData.thumbnailPreview ? (
+                <div className="border-2 border-gray-300 border-dashed rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                    onChange={handleThumbnailUpload}
+                    className="hidden"
+                    id="thumbnail-upload"
+                  />
+                  <label 
+                    htmlFor="thumbnail-upload" 
+                    className="cursor-pointer flex flex-col items-center space-y-2"
+                  >
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Camera className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <div>
+                      <span className="text-blue-600 hover:text-blue-700 font-medium">
+                        点击上传封面图
+                      </span>
+                      <span className="text-gray-500"> 或拖拽图片到此处</span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      支持 JPG、PNG、WebP 格式，建议尺寸 800x450，大小不超过 5MB
+                    </p>
+                  </label>
+                </div>
+              ) : (
+                /* 显示图片预览 */
+                <div className="relative inline-block">
+                  <div className="relative group">
+                    <img
+                      src={formData.thumbnailPreview}
+                      alt="课程封面预览"
+                      className="w-full max-w-md h-48 object-cover rounded-lg border border-gray-200"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                      <div className="flex space-x-2">
+                        <label 
+                          htmlFor="thumbnail-upload" 
+                          className="bg-white text-gray-700 px-3 py-1 rounded text-sm cursor-pointer hover:bg-gray-100"
+                        >
+                          <Image className="w-4 h-4 inline mr-1" />
+                          更换
+                        </label>
+                        <button
+                          type="button"
+                          onClick={removeThumbnail}
+                          className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                        >
+                          <X className="w-4 h-4 inline mr-1" />
+                          移除
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                    onChange={handleThumbnailUpload}
+                    className="hidden"
+                    id="thumbnail-upload"
+                  />
+                  <div className="mt-2 text-sm text-gray-600">
+                    <p>文件名: {formData.thumbnailFile?.name}</p>
+                    <p>大小: {formData.thumbnailFile ? (formData.thumbnailFile.size / 1024 / 1024).toFixed(2) + ' MB' : ''}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 课程列表 */}

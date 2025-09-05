@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import toast from 'react-hot-toast';
 import { COURSE_CONTRACT_CONFIG } from '../config/courseContract';
@@ -14,6 +14,7 @@ import { getCourse, getCreatorCourseIds, hasPurchased } from '../utils/courseSto
 
 export const useCourseContract = (): UseCourseContractResult => {
   const { address } = useAccount();
+  const publicClient = usePublicClient();
   const { writeContract, data: hash, error: contractError, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
@@ -120,6 +121,27 @@ export const useCourseContract = (): UseCourseContractResult => {
       setIsPurchasing(true);
       setError(null);
       
+      console.log('准备调用合约 enrollInCourse:', {
+        contractAddress: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS,
+        courseId,
+        userAddress: address,
+        price
+      });
+      
+      // 先检查课程是否存在于合约中
+      console.log('正在检查课程是否存在于合约中...');
+      const courseExists = await checkCourseExistsInContract(courseId);
+      
+      if (!courseExists) {
+        const errorMessage = `课程 ${courseId} 不存在于区块链合约中，无法购买。请联系课程创建者先在区块链上发布课程。`;
+        console.error(errorMessage);
+        setError(errorMessage);
+        toast.error(errorMessage);
+        return { success: false };
+      }
+      
+      console.log('课程存在于合约中，继续购买流程...');
+      
       // 新合约中使用enrollInCourse函数
       writeContract({
         address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
@@ -128,12 +150,41 @@ export const useCourseContract = (): UseCourseContractResult => {
         args: [courseId], // 使用string类型的courseId
       });
 
+      console.log('合约调用已提交，等待执行结果...');
+      
       // 返回成功状态，hash将通过wagmi的机制获取
       return { success: true, hash: undefined }; // hash会在writeContract成功后通过wagmi状态获取
       
     } catch (err: any) {
       console.error('Purchase course error:', err);
-      const errorMessage = err?.message || '购买课程失败';
+      console.error('Error details:', {
+        name: err?.name,
+        message: err?.message,
+        cause: err?.cause,
+        code: err?.code,
+        data: err?.data
+      });
+      
+      let errorMessage = '购买课程失败';
+      
+      // 解析具体错误原因
+      if (err?.message) {
+        const message = err.message.toLowerCase();
+        if (message.includes('course does not exist')) {
+          errorMessage = '课程不存在，可能未在区块链上创建';
+        } else if (message.includes('already enrolled')) {
+          errorMessage = '您已经注册了这门课程';
+        } else if (message.includes('insufficient allowance')) {
+          errorMessage = '一灯币授权不足，请先进行授权';
+        } else if (message.includes('insufficient balance')) {
+          errorMessage = '一灯币余额不足';
+        } else if (message.includes('course not active')) {
+          errorMessage = '课程未激活';
+        } else if (message.includes('internal json-rpc error')) {
+          errorMessage = '合约执行失败：可能是课程不存在或其他合约条件未满足';
+        }
+      }
+      
       setError(errorMessage);
       toast.error(errorMessage);
       return { success: false };
@@ -141,6 +192,37 @@ export const useCourseContract = (): UseCourseContractResult => {
       setIsPurchasing(false);
     }
   }, [address, writeContract]);
+
+  // 检查课程是否在合约中存在（新增调试功能）
+  const checkCourseExistsInContract = useCallback(async (courseId: string): Promise<boolean> => {
+    if (!publicClient) return false;
+    
+    try {
+      setIsLoading(true);
+      
+      console.log('检查课程是否存在于合约中:', courseId);
+      
+      // 尝试获取课程信息
+      const courseData = await publicClient.readContract({
+        address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+        abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
+        functionName: 'getCourse',
+        args: [courseId],
+      });
+      
+      console.log('合约中的课程数据:', courseData);
+      
+      // 如果课程存在，courseData应该不为空且courseId不为空字符串
+      return courseData && courseData.courseId && courseData.courseId !== '';
+      
+    } catch (err: any) {
+      console.error('检查课程存在性失败:', err);
+      console.log('课程可能不存在于合约中:', courseId);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [publicClient]);
 
   // 检查是否已购买课程
   const hasPurchasedCourse = useCallback(async (courseId: string): Promise<boolean> => {
@@ -257,6 +339,7 @@ export const useCourseContract = (): UseCourseContractResult => {
     isPurchaseSuccess: isSuccess, // 暴露交易成功状态
     
     hasPurchasedCourse,
+    checkCourseExistsInContract, // 新增调试功能
     getCourseStats,
     
     withdrawEarnings,
