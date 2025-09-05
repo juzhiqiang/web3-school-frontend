@@ -61,16 +61,12 @@ export const ERROR_MESSAGES = {
 
 // 获取当前网络的合约地址
 export const getContractAddress = (chainId: number): string => {
-  console.log(`获取网络 ${chainId} 的合约地址...`);
-
   // 处理Ganache本地网络的特殊情况
   if (chainId === 1337) {
     const localAddress = import.meta.env.VITE_LOCAL_CONTRACT_ADDRESS;
     if (localAddress) {
-      console.log(`使用本地合约地址: ${localAddress}`);
       return localAddress;
     }
-    console.log("使用默认Ganache合约地址");
   }
 
   const address =

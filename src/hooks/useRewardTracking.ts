@@ -26,11 +26,11 @@ export const useRewardTracking = () => {
 
     try {
       setIsLoadingHistory(true);
-      console.log('🔍 查询最近的奖励事件...');
 
       // 查询最近500个区块的事件（增加范围以确保能找到事件）
       const currentBlock = await publicClient.getBlockNumber();
-      const fromBlock = currentBlock - BigInt(500);
+      // 确保fromBlock不为负数
+      const fromBlock = currentBlock > BigInt(500) ? currentBlock - BigInt(500) : BigInt(0);
 
       console.log(`📊 查询区块范围: ${fromBlock} -> ${currentBlock}`);
 
@@ -84,16 +84,9 @@ export const useRewardTracking = () => {
       rewardEvents.sort((a, b) => b.blockNumber - a.blockNumber);
 
       setRecentRewards(rewardEvents.slice(0, 10)); // 保留最近10条
-      
-      console.log(`✅ 成功加载 ${rewardEvents.length} 个奖励事件`);
 
     } catch (error) {
-      console.error('❌ 查询历史奖励事件失败:', error);
-      console.error('错误详情:', {
-        name: error?.name,
-        message: error?.message,
-        cause: error?.cause
-      });
+      // 错误处理
     } finally {
       setIsLoadingHistory(false);
     }
@@ -106,14 +99,8 @@ export const useRewardTracking = () => {
     eventName: 'CoursePublishReward',
     enabled: isConnected,
     onLogs(logs) {
-      console.log('📢 检测到新的课程发布奖励事件:', logs);
       
       logs.forEach((log, index) => {
-        console.log(`处理新事件 ${index + 1}:`, {
-          transactionHash: log.transactionHash,
-          blockNumber: log.blockNumber,
-          args: log.args
-        });
 
         if (log.args) {
           const { instructor, uuid, rewardAmount } = log.args as {
@@ -149,17 +136,16 @@ export const useRewardTracking = () => {
             return updatedRewards;
           });
           
-          // 如果是当前用户的奖励，显示通知
-          if (instructor.toLowerCase() === address?.toLowerCase()) {
-            console.log(`🎉 恭喜！您获得了 ${rewardAmount?.toString() || '0'} 一灯币课程发布奖励！`);
-          }
-        } else {
-          console.warn('⚠️ 事件参数为空:', log);
+          // 如果是当前用户的奖励，可以在这里显示通知
+          // if (instructor.toLowerCase() === address?.toLowerCase()) {
+          //   显示成功通知
+          // }
+        // 事件参数为空
         }
       });
     },
     onError(error) {
-      console.error('❌ 事件监听出错:', error);
+      // 事件监听错误处理
     }
   });
 
@@ -182,7 +168,6 @@ export const useRewardTracking = () => {
   useEffect(() => {
     if (isConnected) {
       setIsListening(true);
-      console.log('🎯 开始监听课程奖励事件...');
       
       // 查询历史事件
       fetchRecentRewardEvents();

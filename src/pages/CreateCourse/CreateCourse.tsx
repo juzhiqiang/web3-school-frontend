@@ -344,39 +344,38 @@ const CreateCourse: React.FC = () => {
       
       // 再次检查（允许更长时间让事件处理完成）
       setTimeout(() => {
-        setRecentRewards(currentRewards => {
-          // 检查是否收到了奖励
-          const userReward = currentRewards.find(
-            reward => reward.instructor.toLowerCase() === address.toLowerCase() &&
-            reward.uuid === createdCourseId
-          );
+        // 再次刷新事件以获取最新数据
+        fetchRecentRewardEvents();
+        
+        // 检查是否收到了奖励
+        const userReward = recentRewards.find(
+          reward => reward.instructor.toLowerCase() === address.toLowerCase() &&
+          reward.uuid === createdCourseId
+        );
+        
+        if (userReward) {
+          // 收到了奖励，显示成功消息
+          toast.success(`课程创建成功！获得 ${userReward.rewardAmount} 一灯币奖励！`);
+          setShowSuccessModal(true);
           
-          if (userReward) {
-            // 收到了奖励，显示成功消息
-            toast.success(`课程创建成功！获得 ${userReward.rewardAmount} 一灯币奖励！`);
-            setShowSuccessModal(true);
-            
-            // 记录创建课程奖励到本地存储
-            recordCreateCourseReward(address, createdCourseId);
+          // 记录创建课程奖励到本地存储
+          recordCreateCourseReward(address, createdCourseId);
+        } else {
+          // 没有收到奖励，分析可能的原因
+          let errorMessage = '但是奖励发放失败';
+          
+          if (parseFloat(contractTokenBalance) < parseFloat(YIDENG_REWARDS.CREATE_COURSE)) {
+            errorMessage = `但是奖励发放失败：合约余额不足（当前 ${contractTokenBalance} YD，需要 ${YIDENG_REWARDS.CREATE_COURSE} YD）`;
+          } else if (!isListening) {
+            errorMessage = '但是奖励发放失败：事件监听未启动';
           } else {
-            // 没有收到奖励，分析可能的原因
-            let errorMessage = '但是奖励发放失败';
-            
-            if (parseFloat(contractTokenBalance) < parseFloat(YIDENG_REWARDS.CREATE_COURSE)) {
-              errorMessage = `但是奖励发放失败：合约余额不足（当前 ${contractTokenBalance} YD，需要 ${YIDENG_REWARDS.CREATE_COURSE} YD）`;
-            } else if (!isListening) {
-              errorMessage = '但是奖励发放失败：事件监听未启动';
-            } else {
-              errorMessage = '但是奖励发放失败：可能是合约权限问题或网络延迟';
-            }
-            
-            toast.success('课程创建成功！');
-            toast.error(errorMessage);
-            setShowSuccessModal(true);
+            errorMessage = '但是奖励发放失败：可能是合约权限问题或网络延迟';
           }
-
-          return currentRewards; // 不修改状态，只是检查
-        });
+          
+          toast.success('课程创建成功！');
+          toast.error(errorMessage);
+          setShowSuccessModal(true);
+        }
       }, 5000); // 5秒后检查
 
       // 重置表单
