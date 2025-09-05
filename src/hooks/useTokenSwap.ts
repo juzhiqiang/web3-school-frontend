@@ -331,7 +331,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
 
   const refetchAll = () => {
-    console.log('🔄 刷新所有数据...')
     refetchRate()
     refetchFees()
     refetchContractTokenBalance()
@@ -348,8 +347,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
   
   useEffect(() => {
     if (isConfirmed) {
-      console.log('🔄 交易确认，开始刷新数据...', { hash, lastApprovalHash })
-      
       if (hash === lastApprovalHash) {
         // 授权交易确认
         refetchAllowance()
@@ -365,18 +362,15 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
         
         // 延迟刷新确保数据同步
         setTimeout(() => {
-          console.log('🔄 延迟刷新数据 - 1秒后')
           refetchAll()
         }, 1000)
         
         setTimeout(() => {
-          console.log('🔄 延迟刷新数据 - 3秒后')
           refetchAll()
         }, 3000)
         
         // 额外刷新用户余额（最重要）
         setTimeout(() => {
-          console.log('🔄 最终刷新用户余额 - 5秒后')
           refetchUserTokenBalance()
           // 也刷新ETH余额
           if (refetchETHBalance) {
@@ -398,7 +392,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
       const netTokens = grossTokens - fee;
       return formatUnits(netTokens, 18);
     } catch (error) {
-      console.error("计算代币数量失败:", error);
       return "0";
     }
   }
@@ -414,7 +407,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
       const netETH = grossETH - fee;
       return formatEther(netETH);
     } catch (error) {
-      console.error("计算ETH数量失败:", error);
       return "0";
     }
   }
@@ -450,7 +442,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
       const networkName = getNetworkName(chainId);
       toast.success(`购买交易已提交到 ${networkName}，等待确认后余额将自动更新`);
     } catch (err: any) {
-      console.error("购买代币失败:", err);
       let errorMessage = "购买失败";
       if (err.message?.includes("InsufficientTokenBalance")) {
         errorMessage = "合约中代币库存不足";
@@ -491,7 +482,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
       toast.success("授权交易已提交，等待确认...");
       
     } catch (err: any) {
-      console.error("授权失败:", err);
       let errorMessage = "授权失败";
       if (err.message?.includes("User rejected")) {
         errorMessage = "用户取消了授权";
@@ -539,7 +529,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
       const networkName = getNetworkName(chainId);
       toast.success(`出售交易已提交到 ${networkName}，等待确认后余额将自动更新`);
     } catch (err: any) {
-      console.error("出售代币失败:", err);
       let errorMessage = "出售失败";
       if (err.message?.includes("InsufficientETHBalance")) {
         errorMessage = "合约中ETH库存不足";
@@ -570,18 +559,10 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
       setIsLoading(true)
       const mintAmount = parseUnits(amount, 18)
       
-      console.log('🏭 开始完整充值流程:', {
-        tokenAddress: yiDengTokenAddress,
-        contractAddress,
-        userAddress: address,
-        amount: amount
-      })
-      
       // 提示用户需要确认多个交易
       toast.success(`开始充值流程：需要确认3个交易`);
       
       // 第一步：铸造代币给当前用户
-      console.log('步骤1: 铸造代币')
       await writeContract({
         address: yiDengTokenAddress,
         abi: ERC20_ABI,
@@ -595,7 +576,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
       setTimeout(async () => {
         try {
           // 第二步：授权合约使用用户的代币
-          console.log('步骤2: 授权合约')
           await writeContract({
             address: yiDengTokenAddress,
             abi: ERC20_ABI,
@@ -609,7 +589,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
           setTimeout(async () => {
             try {
               // 第三步：调用合约的depositTokens函数
-              console.log('步骤3: 转移代币到合约')
               await writeContract({
                 address: contractAddress as `0x${string}`,
                 abi: TOKEN_SWAP_ABI,
@@ -623,19 +602,16 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
               setTimeout(() => refetchAll(), 2000);
               
             } catch (err: any) {
-              console.error("步骤3失败:", err);
               toast.error("转移代币到合约失败：" + (err.message || "未知错误"));
             }
           }, 3000); // 等待3秒让授权交易确认
           
         } catch (err: any) {
-          console.error("步骤2失败:", err);
           toast.error("授权合约失败：" + (err.message || "未知错误"));
         }
       }, 3000); // 等待3秒让铸造交易确认
       
     } catch (err: any) {
-      console.error("步骤1失败:", err);
       let errorMessage = "铸造代币失败";
       if (err.message?.includes("User rejected")) {
         errorMessage = "用户取消了操作";
@@ -652,59 +628,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
     }
   }
 
-  // 新增：一键设置测试环境
-  const setupTestEnvironment = async () => {
-    if (!isConnected || !address || !yiDengTokenAddress || !contractAddress) {
-      toast.error('钱包未连接或合约地址未获取')
-      return
-    }
-
-    try {
-      setIsLoading(true)
-      
-      // 显示开始提示
-      toast.success('🧪 开始设置测试环境...')
-      
-      const testTokenAmount = parseUnits("10000", 18) // 10,000 一灯币
-      const testETHAmount = parseEther("1") // 1 ETH
-      
-      console.log('🧪 测试环境设置参数:', {
-        tokenAmount: "10000 YD",
-        ethAmount: "1 ETH",
-        contractAddress,
-        yiDengTokenAddress,
-        userAddress: address
-      })
-
-      // 步骤1：铸造代币给用户
-      console.log('步骤1: 铸造测试代币...')
-      await writeContract({
-        address: yiDengTokenAddress,
-        abi: ERC20_ABI,
-        functionName: "mint",
-        args: [address, testTokenAmount],
-      });
-
-      toast.success('步骤1完成：已铸造10,000一灯币到您的账户');
-      
-      // 等待第一个交易确认后继续
-      
-    } catch (err: any) {
-      console.error("设置测试环境失败:", err);
-      let errorMessage = "设置测试环境失败";
-      if (err.message?.includes("User rejected")) {
-        errorMessage = "用户取消了操作";
-      } else if (err.message?.includes("Ownable: caller is not the owner")) {
-        errorMessage = "需要合约所有者权限来铸造代币";
-      } else if (err.message) {
-        errorMessage = `设置失败: ${err.message}`;
-      }
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   // 新增：充值ETH到合约
   const depositETHToContract = async (amount: string = "1") => {
     if (!isConnected || !address || !contractAddress) {
@@ -714,12 +637,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
 
     try {
       setIsLoading(true)
-      
-      console.log('💎 充值ETH到合约:', {
-        contractAddress,
-        amount,
-        userAddress: address
-      })
       
       await writeContract({
         address: contractAddress as `0x${string}`,
@@ -735,7 +652,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
       setTimeout(() => refetchAll(), 2000);
       
     } catch (err: any) {
-      console.error("充值ETH失败:", err);
       let errorMessage = "充值ETH失败";
       if (err.message?.includes("User rejected")) {
         errorMessage = "用户取消了充值";
@@ -846,7 +762,6 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
 
     // 新增：测试充值函数
     mintAndDepositTestTokens,
-    setupTestEnvironment,
     depositETHToContract,
 
     // 加载状态
