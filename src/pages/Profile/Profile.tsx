@@ -53,7 +53,6 @@ function Profile() {
       const courses: CourseData[] = []
       let totalStudents = 0
       let totalRevenue = 0
-
       for (const courseId of creatorCourseIds) {
         const localCourse = getCourse(courseId)
         if (localCourse) {
@@ -240,7 +239,7 @@ function Profile() {
               {course.difficulty}
             </span>
             <span className="font-medium text-blue-600">
-              {course.price} 一灯币
+              {course.price} YD
             </span>
           </div>
         </div>
@@ -505,7 +504,7 @@ function Profile() {
                     <h3 className="font-semibold">总收入</h3>
                   </div>
                   <p className="text-2xl font-bold text-orange-600">
-                    {stats.totalRevenue.toFixed(3)} 一灯币
+                    {stats.totalRevenue.toFixed(3)} YD
                   </p>
                   <p className="text-xs text-gray-500 mt-1">链上收入</p>
                 </div>

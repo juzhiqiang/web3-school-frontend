@@ -3,7 +3,6 @@ import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wi
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
 import { TOKEN_SWAP_CONFIG, ERROR_MESSAGES } from '../../config/tokenSwap'
-import DebugPanel from '../../components/DebugPanel'
 import toast from 'react-hot-toast'
 
 function TokenSwap() {
@@ -217,8 +216,6 @@ function TokenSwap() {
           <h2 className="text-2xl font-bold mb-4">一灯币兑换</h2>
           <p className="text-gray-600">请先连接您的钱包以开始兑换一灯币。</p>
         </div>
-        {/* 开发环境调试面板 */}
-        <DebugPanel />
       </div>
     )
   }
@@ -682,9 +679,6 @@ function TokenSwap() {
           </div>
         </div>
       </div>
-      
-      {/* 开发环境调试面板 */}
-      <DebugPanel />
     </div>
   )
 }

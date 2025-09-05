@@ -38,20 +38,10 @@ export const useCourseContract = (): UseCourseContractResult => {
     try {
       setIsCreating(true);
       setCreateError(null);
-      
       // 将一灯币价格转换为wei单位（18位小数）
       const priceInWei = parseEther(courseData.price);
       // 学员完成课程奖励金额（给学员的奖励，不是创建者奖励）
       const courseCompletionRewardInWei = parseEther(YIDENG_REWARDS.COMPLETE_COURSE);
-      
-      console.log('🚀 准备创建课程:', {
-        courseId: courseData.courseId,
-        title: courseData.title,
-        price: courseData.price,
-        priceInWei: priceInWei.toString(),
-        courseCompletionRewardInWei: courseCompletionRewardInWei.toString(),
-        creatorAddress: address
-      });
       
       // 调用智能合约创建课程
       writeContract({
@@ -130,15 +120,7 @@ export const useCourseContract = (): UseCourseContractResult => {
       setIsPurchasing(true);
       setError(null);
       
-      console.log('准备调用合约 enrollInCourse:', {
-        contractAddress: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS,
-        courseId,
-        userAddress: address,
-        price
-      });
-      
       // 先检查课程是否存在于合约中
-      console.log('正在检查课程是否存在于合约中...');
       const courseExists = await checkCourseExistsInContract(courseId);
       
       if (!courseExists) {
@@ -149,8 +131,6 @@ export const useCourseContract = (): UseCourseContractResult => {
         return { success: false };
       }
       
-      console.log('课程存在于合约中，继续购买流程...');
-      
       // 新合约中使用enrollInCourse函数
       writeContract({
         address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
@@ -159,8 +139,6 @@ export const useCourseContract = (): UseCourseContractResult => {
         args: [courseId], // 使用string类型的courseId
       });
 
-      console.log('合约调用已提交，等待执行结果...');
-      
       // 返回成功状态，hash将通过wagmi的机制获取
       return { success: true, hash: undefined }; // hash会在writeContract成功后通过wagmi状态获取
       

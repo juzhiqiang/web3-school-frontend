@@ -10,10 +10,7 @@ import { saveCourse } from '../../utils/courseStorage';
 import { validateYiDengAmount } from '../../config/yidengToken';
 import { recordCreateCourseReward } from '../../utils/rewardStorage';
 import ContractFundingWarning from '../../components/ContractFundingWarning/ContractFundingWarning';
-import CourseCreationDebug from '../../components/CourseCreationDebug/CourseCreationDebug';
 import { useRewardTracking } from '../../hooks/useRewardTracking';
-import RewardDebugPanel from '../../components/RewardDebugPanel/RewardDebugPanel';
-import ContractTestPanel from '../../components/ContractTestPanel/ContractTestPanel';
 
 // 直接定义类型以避免导入问题
 interface CourseLesson {
@@ -312,7 +309,6 @@ const CreateCourse: React.FC = () => {
           };
           reader.readAsDataURL(formData.thumbnailFile);
         });
-        console.log('封面图片已处理，大小:', thumbnailHash.length);
       }
       
       // 准备课程数据
@@ -334,7 +330,6 @@ const CreateCourse: React.FC = () => {
       await createCourse({ ...formData, courseId });
       
     } catch (error) {
-      console.error('Create course failed:', error);
       // 错误处理在useCourseContract中已经处理
     }
   }, [isConnected, validateForm, formData, createCourse, address]);
@@ -342,30 +337,14 @@ const CreateCourse: React.FC = () => {
   // 监听创建课程成功和奖励发放
   useEffect(() => {
     if (isCreateSuccess && createdCourseId && address) {
-      console.log('📊 课程创建成功，检查奖励发放状态...', {
-        courseId: createdCourseId,
-        userAddress: address,
-        recentRewards: recentRewards.length,
-        contractBalance: contractTokenBalance,
-        allRewards: recentRewards
-      });
-
       // 等待一小段时间让事件传播，然后手动刷新事件历史
       setTimeout(() => {
-        console.log('🔄 手动刷新奖励事件历史...');
         fetchRecentRewardEvents();
       }, 2000);
       
       // 再次检查（允许更长时间让事件处理完成）
       setTimeout(() => {
         setRecentRewards(currentRewards => {
-          console.log('🔍 延迟检查奖励事件:', {
-            currentRewards: currentRewards.length,
-            courseId: createdCourseId,
-            userAddress: address,
-            rewards: currentRewards
-          });
-
           // 检查是否收到了奖励
           const userReward = currentRewards.find(
             reward => reward.instructor.toLowerCase() === address.toLowerCase() &&
@@ -374,29 +353,13 @@ const CreateCourse: React.FC = () => {
           
           if (userReward) {
             // 收到了奖励，显示成功消息
-            console.log('✅ 奖励发放成功:', userReward);
             toast.success(`课程创建成功！获得 ${userReward.rewardAmount} 一灯币奖励！`);
             setShowSuccessModal(true);
             
             // 记录创建课程奖励到本地存储
-            const rewardRecord = recordCreateCourseReward(address, createdCourseId);
-            console.log('创建课程奖励已记录:', rewardRecord);
+            recordCreateCourseReward(address, createdCourseId);
           } else {
             // 没有收到奖励，分析可能的原因
-            console.warn('❌ 未检测到课程创建奖励事件');
-            console.log('💡 可能的原因分析:', {
-              contractBalance: contractTokenBalance,
-              balanceNumber: parseFloat(contractTokenBalance),
-              requiredReward: YIDENG_REWARDS.CREATE_COURSE,
-              hasEnoughBalance: parseFloat(contractTokenBalance) >= parseFloat(YIDENG_REWARDS.CREATE_COURSE),
-              isListening: isListening,
-              recentRewardsCount: currentRewards.length,
-              searchedCourseId: createdCourseId,
-              searchedAddress: address.toLowerCase(),
-              availableInstructors: currentRewards.map(r => r.instructor.toLowerCase()),
-              availableUuids: currentRewards.map(r => r.uuid)
-            });
-            
             let errorMessage = '但是奖励发放失败';
             
             if (parseFloat(contractTokenBalance) < parseFloat(YIDENG_REWARDS.CREATE_COURSE)) {
@@ -474,9 +437,6 @@ const CreateCourse: React.FC = () => {
           {/* 合约资金警告 */}
           <div className="px-6 pt-6">
             <ContractFundingWarning />
-            <CourseCreationDebug />
-            <RewardDebugPanel />
-            <ContractTestPanel />
           </div>
 
           <form className="p-6 space-y-6">
