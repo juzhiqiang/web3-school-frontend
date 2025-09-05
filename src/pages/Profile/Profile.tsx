@@ -32,7 +32,7 @@ interface UserProfile {
 function Profile() {
   const { isConnected, address, balance } = useWeb3()
   const navigate = useNavigate()
-  const { getCourseStats } = useCourseContract()
+  const { getCourseStats, getAuthorStats } = useCourseContract()
   const { creatorCourseIds, purchasedCourseIds } = useMyCoursesContract()
   
   const [isEditing, setIsEditing] = useState(false)
@@ -131,8 +131,6 @@ function Profile() {
 
     try {
       const courses: CourseData[] = []
-      let totalStudents = 0
-      let totalRevenue = 0
       for (const courseId of creatorCourseIds) {
         const localCourse = getCourse(courseId)
         if (localCourse) {
@@ -145,9 +143,6 @@ function Profile() {
                 totalRevenue: stats.totalRevenue || '0',
                 isActive: true
               }
-              
-              totalStudents += parseInt(stats.studentCount || '0')
-              totalRevenue += parseFloat(stats.totalRevenue || '0')
 
               courses.push({
                 ...localCourse,
@@ -187,12 +182,35 @@ function Profile() {
       }
 
       setCreatedCourses(courses)
-      setStats(prev => ({
-        ...prev,
-        createdCount: courses.length,
-        totalStudents,
-        totalRevenue
-      }))
+      
+      // 使用新的getAuthorStats来获取总体统计
+      try {
+        const authorStats = await getAuthorStats(address)
+        if (authorStats) {
+          setStats(prev => ({
+            ...prev,
+            createdCount: authorStats.courseCount,
+            totalStudents: authorStats.totalStudents,
+            totalRevenue: parseFloat(authorStats.totalRevenue)
+          }))
+        } else {
+          // 如果链上统计获取失败，使用课程数组的长度
+          setStats(prev => ({
+            ...prev,
+            createdCount: courses.length,
+            totalStudents: 0,
+            totalRevenue: 0
+          }))
+        }
+      } catch (err) {
+        console.error('获取作者总体统计失败:', err)
+        setStats(prev => ({
+          ...prev,
+          createdCount: courses.length,
+          totalStudents: 0,
+          totalRevenue: 0
+        }))
+      }
     } catch (error) {
       console.error('加载创建的课程失败:', error)
       setError('获取创建的课程数据失败，请检查网络连接或稍后重试')

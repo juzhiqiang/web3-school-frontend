@@ -106,6 +106,13 @@ export interface UseCourseContractResult {
     studentCount: string;
   } | null>;
   
+  // 获取作者统计
+  getAuthorStats: (authorAddress: string) => Promise<{
+    totalStudents: number;
+    totalRevenue: string;
+    courseCount: number;
+  } | null>;
+  
   // 提取收益
   withdrawEarnings: (amount: string) => Promise<void>; // 改为金额参数
   isWithdrawing: boolean;

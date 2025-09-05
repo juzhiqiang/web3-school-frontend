@@ -226,17 +226,36 @@ export const useCourseContract = (): UseCourseContractResult => {
 
   // 获取课程统计
   const getCourseStats = useCallback(async (courseId: string) => {
+    if (!publicClient) return null;
+    
     try {
       setIsLoading(true);
       setError(null);
       
-      // 模拟从合约获取统计数据
+      // 从合约获取课程信息
+      const courseData = await publicClient.readContract({
+        address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+        abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
+        functionName: 'getCourse',
+        args: [courseId],
+      });
+      
+      if (!courseData || !courseData.courseId) {
+        console.warn(`课程 ${courseId} 不存在于合约中`);
+        return null;
+      }
+      
+      // 计算总收入 = 价格 × 总注册数
+      const totalRevenue = (BigInt(courseData.price) * BigInt(courseData.totalEnrollments)).toString();
+      const totalRevenueInEther = formatEther(BigInt(totalRevenue));
+      
       const stats = {
-        totalSales: '0',
-        totalRevenue: '0',
-        studentCount: '0',
+        totalSales: courseData.totalEnrollments.toString(),
+        totalRevenue: totalRevenueInEther,
+        studentCount: courseData.totalEnrollments.toString(),
       };
       
+      console.log(`课程 ${courseId} 链上统计:`, stats);
       return stats;
     } catch (err: any) {
       console.error('Get course stats error:', err);
@@ -246,7 +265,64 @@ export const useCourseContract = (): UseCourseContractResult => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [publicClient]);
+
+  // 获取作者的总体统计数据
+  const getAuthorStats = useCallback(async (authorAddress: string) => {
+    if (!publicClient || !authorAddress) return null;
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // 获取作者的所有课程ID
+      const authorCourseIds = await publicClient.readContract({
+        address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+        abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
+        functionName: 'getAuthorCourses',
+        args: [authorAddress as `0x${string}`],
+      }) as string[];
+      
+      let totalStudents = 0;
+      let totalRevenue = BigInt(0);
+      
+      // 遍历所有课程获取统计数据
+      for (const courseId of authorCourseIds) {
+        try {
+          const courseData = await publicClient.readContract({
+            address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+            abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
+            functionName: 'getCourse',
+            args: [courseId],
+          });
+          
+          if (courseData && courseData.courseId) {
+            totalStudents += Number(courseData.totalEnrollments);
+            totalRevenue += BigInt(courseData.price) * BigInt(courseData.totalEnrollments);
+          }
+        } catch (err) {
+          console.warn(`获取课程 ${courseId} 统计失败:`, err);
+          // 继续处理其他课程
+        }
+      }
+      
+      const stats = {
+        totalStudents,
+        totalRevenue: formatEther(totalRevenue),
+        courseCount: authorCourseIds.length
+      };
+      
+      console.log(`作者 ${authorAddress} 总体统计:`, stats);
+      return stats;
+    } catch (err: any) {
+      console.error('Get author stats error:', err);
+      const errorMessage = err?.message || '获取作者统计失败';
+      setError(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [publicClient]);
 
   // 提取收益（新合约中使用withdrawTokens）
   const withdrawEarnings = useCallback(async (amount: string) => { // 改为金额参数
@@ -328,6 +404,7 @@ export const useCourseContract = (): UseCourseContractResult => {
     hasPurchasedCourse,
     checkCourseExistsInContract, // 新增调试功能
     getCourseStats,
+    getAuthorStats, // 新增作者统计功能
     
     withdrawEarnings,
     isWithdrawing: isWithdrawing || isPending || isConfirming,
