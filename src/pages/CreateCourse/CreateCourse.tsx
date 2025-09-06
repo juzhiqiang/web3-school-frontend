@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAccount } from 'wagmi';
+import { useAccount, usePublicClient } from 'wagmi';
 import { v4 as uuidv4 } from 'uuid';
 import { PlusCircle, X, Upload, AlertCircle, CheckCircle, Coins, Image, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCourseContract } from '../../hooks/useCourseContract';
 import { YIDENG_REWARDS } from '../../config/contract';
+import { COURSE_CONTRACT_CONFIG } from '../../config/courseContract';
 import { saveCourse } from '../../utils/courseStorage';
 import { validateYiDengAmount } from '../../config/yidengToken';
 import { recordCreateCourseReward } from '../../utils/rewardStorage';
@@ -102,14 +103,9 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, courseId, 
 const CreateCourse: React.FC = () => {
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
+  const publicClient = usePublicClient();
   const { createCourse, isCreating, createError, isCreateSuccess } = useCourseContract();
-  const { 
-    recentRewards, 
-    isListening, 
-    isLoadingHistory,
-    fetchRecentRewardEvents,
-    contractTokenBalance 
-  } = useRewardTracking();
+  const { contractTokenBalance } = useRewardTracking();
 
   // 表单状态
   const [formData, setFormData] = useState<CreateCourseFormData>({
@@ -128,6 +124,7 @@ const CreateCourse: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [currentTag, setCurrentTag] = useState('');
   const [createdCourseId, setCreatedCourseId] = useState<string>();
+  const [actualRewardAmount, setActualRewardAmount] = useState<string>(); // 存储实际奖励金额
 
   // 处理表单输入
   const handleInputChange = useCallback((field: keyof CreateCourseFormData, value: string | string[] | CourseLesson[]) => {
@@ -334,40 +331,134 @@ const CreateCourse: React.FC = () => {
     }
   }, [isConnected, validateForm, formData, createCourse, address]);
 
+  // 检查特定课程的奖励状态
+  const checkCourseRewardStatus = useCallback(async (courseId: string, creatorAddress: string) => {
+    if (!courseId || !creatorAddress || !publicClient) return null;
+
+    try {
+      console.log(`🔍 开始查询课程 ${courseId} 的奖励状态...`);
+      
+      const contractAddress = COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`;
+      
+      // 获取创建课程奖励事件 (CoursePublishReward)
+      const createCourseRewardLogs = await publicClient.getLogs({
+        address: contractAddress,
+        event: {
+          type: 'event',
+          name: 'CoursePublishReward',
+          inputs: [
+            { type: 'address', name: 'instructor', indexed: true },
+            { type: 'string', name: 'uuid', indexed: true },
+            { type: 'uint256', name: 'rewardAmount', indexed: false }
+          ]
+        },
+        args: {
+          instructor: creatorAddress as `0x${string}`,
+          uuid: courseId
+        },
+        fromBlock: 0n,
+        toBlock: 'latest'
+      });
+
+      console.log(`📊 找到 ${createCourseRewardLogs.length} 个匹配的CoursePublishReward事件`);
+      
+      // 打印所有事件的详细信息用于调试
+      createCourseRewardLogs.forEach((log, index) => {
+        if (log.args) {
+          const { instructor, uuid, rewardAmount } = log.args;
+          console.log(`事件 ${index + 1}:`, {
+            instructor: instructor,
+            uuid: uuid,
+            rewardAmount: rewardAmount?.toString(),
+            transactionHash: log.transactionHash,
+            blockNumber: Number(log.blockNumber)
+          });
+        }
+      });
+
+      // 查找最新的匹配奖励事件
+      if (createCourseRewardLogs.length > 0) {
+        const latestLog = createCourseRewardLogs[createCourseRewardLogs.length - 1];
+        const { instructor, uuid, rewardAmount } = latestLog.args;
+
+        console.log('🎉 找到匹配的奖励事件!', {
+          instructor,
+          uuid,
+          rewardAmount: rewardAmount?.toString(),
+          transactionHash: latestLog.transactionHash,
+          blockNumber: Number(latestLog.blockNumber)
+        });
+
+        return {
+          instructor: instructor as string,
+          uuid: uuid as string,
+          rewardAmount: rewardAmount?.toString() || '0',
+          transactionHash: latestLog.transactionHash,
+          blockNumber: Number(latestLog.blockNumber)
+        };
+      } else {
+        console.log('⚠️ 未找到匹配的奖励事件');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ 查询奖励状态失败:', error);
+      return null;
+    }
+  }, [publicClient]);
   // 监听创建课程成功和奖励发放
   useEffect(() => {
     if (isCreateSuccess && createdCourseId && address) {
-      // 等待一小段时间让事件传播，然后手动刷新事件历史
-      setTimeout(() => {
-        fetchRecentRewardEvents();
+      console.log('🎉 课程创建成功，开始检查奖励状态...');
+      
+      // 首次快速检查（2秒后）
+      setTimeout(async () => {
+        const rewardStatus = await checkCourseRewardStatus(createdCourseId, address);
+        
+        if (rewardStatus) {
+          console.log('✅ 首次检查：找到奖励');
+          setActualRewardAmount(rewardStatus.rewardAmount); // 设置实际奖励金额
+          toast.success(`课程创建成功！获得 ${rewardStatus.rewardAmount} 一灯币奖励！`);
+          setShowSuccessModal(true);
+          recordCreateCourseReward(address, createdCourseId);
+          return; // 找到奖励，不需要继续等待
+        } else {
+          console.log('⏳ 首次检查：暂未找到奖励，继续等待...');
+        }
       }, 2000);
       
-      // 再次检查（允许更长时间让事件处理完成）
-      setTimeout(() => {
-        // 再次刷新事件以获取最新数据
-        fetchRecentRewardEvents();
+      // 第二次检查（5秒后）
+      setTimeout(async () => {
+        const rewardStatus = await checkCourseRewardStatus(createdCourseId, address);
         
-        // 检查是否收到了奖励
-        const userReward = recentRewards.find(
-          reward => reward.instructor.toLowerCase() === address.toLowerCase() &&
-          reward.uuid === createdCourseId
-        );
-        
-        if (userReward) {
-          // 收到了奖励，显示成功消息
-          toast.success(`课程创建成功！获得 ${userReward.rewardAmount} 一灯币奖励！`);
+        if (rewardStatus) {
+          console.log('✅ 第二次检查：找到奖励');
+          setActualRewardAmount(rewardStatus.rewardAmount); // 设置实际奖励金额
+          toast.success(`课程创建成功！获得 ${rewardStatus.rewardAmount} 一灯币奖励！`);
           setShowSuccessModal(true);
-          
-          // 记录创建课程奖励到本地存储
+          recordCreateCourseReward(address, createdCourseId);
+          return; // 找到奖励，不需要继续等待
+        } else {
+          console.log('⏳ 第二次检查：仍未找到奖励，继续等待...');
+        }
+      }, 5000);
+
+      // 最终检查（10秒后）
+      setTimeout(async () => {
+        const rewardStatus = await checkCourseRewardStatus(createdCourseId, address);
+        
+        if (rewardStatus) {
+          console.log('✅ 最终检查：找到奖励');
+          setActualRewardAmount(rewardStatus.rewardAmount); // 设置实际奖励金额
+          toast.success(`课程创建成功！获得 ${rewardStatus.rewardAmount} 一灯币奖励！`);
+          setShowSuccessModal(true);
           recordCreateCourseReward(address, createdCourseId);
         } else {
-          // 没有收到奖励，分析可能的原因
+          console.log('❌ 最终检查：未找到奖励');
+          // 分析可能的原因
           let errorMessage = '但是奖励发放失败';
           
           if (parseFloat(contractTokenBalance) < parseFloat(YIDENG_REWARDS.CREATE_COURSE)) {
             errorMessage = `但是奖励发放失败：合约余额不足（当前 ${contractTokenBalance} YD，需要 ${YIDENG_REWARDS.CREATE_COURSE} YD）`;
-          } else if (!isListening) {
-            errorMessage = '但是奖励发放失败：事件监听未启动';
           } else {
             errorMessage = '但是奖励发放失败：可能是合约权限问题或网络延迟';
           }
@@ -376,7 +467,7 @@ const CreateCourse: React.FC = () => {
           toast.error(errorMessage);
           setShowSuccessModal(true);
         }
-      }, 5000); // 5秒后检查
+      }, 10000); // 10秒后最终检查
 
       // 重置表单
       // 释放之前的预览URL
@@ -396,7 +487,7 @@ const CreateCourse: React.FC = () => {
         thumbnailPreview: undefined,
       });
     }
-  }, [isCreateSuccess, createdCourseId, address, recentRewards, contractTokenBalance, isListening, fetchRecentRewardEvents]);
+  }, [isCreateSuccess, createdCourseId, address, contractTokenBalance, checkCourseRewardStatus, formData.thumbnailPreview]);
 
   // 组件卸载时清理预览URL
   useEffect(() => {
@@ -776,7 +867,7 @@ const CreateCourse: React.FC = () => {
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         courseId={createdCourseId}
-        rewardAmount={YIDENG_REWARDS.CREATE_COURSE}
+        rewardAmount={actualRewardAmount || YIDENG_REWARDS.CREATE_COURSE}
       />
     </div>
   );
