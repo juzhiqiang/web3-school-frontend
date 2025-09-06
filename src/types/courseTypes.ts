@@ -92,12 +92,18 @@ export interface UseCourseContractResult {
   // 获取创作者课程列表
   getCreatorCourses: (creatorAddress: string) => Promise<string[]>;
   
-  // 购买课程
-  purchaseCourse: (courseId: string, price: string) => Promise<{ success: boolean; hash?: string }>;
+  // 购买课程 - 修复接口以匹配实际实现
+  purchaseCourse: (courseId: string) => Promise<{ success: boolean; hash?: string }>;
   isPurchasing: boolean;
+  purchaseHash: string | undefined; // 添加缺失的属性
+  isPurchaseConfirming: boolean; // 添加缺失的属性
+  isPurchaseSuccess: boolean; // 添加缺失的属性
   
   // 检查是否已购买
   hasPurchasedCourse: (courseId: string) => Promise<boolean>;
+  
+  // 检查课程是否在合约中存在
+  checkCourseExistsInContract: (courseId: string) => Promise<boolean>;
   
   // 获取课程统计
   getCourseStats: (courseId: string) => Promise<{
