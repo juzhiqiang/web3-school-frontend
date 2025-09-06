@@ -30,6 +30,7 @@ export interface UserReward {
   timestamp: string;
   transactionHash?: string;
   claimed: boolean;
+  courseId?: string; // 添加课程ID字段
 }
 
 // 获取用户奖励存储键
@@ -58,12 +59,16 @@ export const addUserReward = (userAddress: string, reward: UserReward): void => 
     // 检查是否已存在相同的奖励（防止重复）
     const exists = currentRewards.some(r => 
       r.type === reward.type && 
-      r.timestamp === reward.timestamp
+      r.timestamp === reward.timestamp &&
+      r.courseId === reward.courseId
     );
     
     if (!exists) {
       currentRewards.unshift(reward); // 新奖励放在前面
       localStorage.setItem(key, JSON.stringify(currentRewards));
+      console.log('✅ 成功添加奖励记录:', reward);
+    } else {
+      console.log('⚠️ 奖励记录已存在，跳过添加');
     }
   } catch (error) {
     console.error('添加用户奖励失败:', error);
@@ -129,7 +134,8 @@ export const hasUserReceivedReward = (userAddress: string, type: RewardTypeValue
 export const createRewardRecord = (
   type: RewardTypeValue,
   description?: string,
-  transactionHash?: string
+  transactionHash?: string,
+  courseId?: string
 ): UserReward => {
   return {
     id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -139,7 +145,169 @@ export const createRewardRecord = (
     timestamp: new Date().toISOString(),
     transactionHash,
     claimed: false,
+    courseId,
   };
+};
+
+// ===== 专用奖励记录函数 =====
+
+/**
+ * 记录创建课程奖励
+ * @param userAddress - 用户地址
+ * @param courseId - 课程ID
+ * @param transactionHash - 交易哈希（可选）
+ * @param customAmount - 自定义奖励金额（可选）
+ */
+export const recordCreateCourseReward = (
+  userAddress: string, 
+  courseId: string, 
+  transactionHash?: string,
+  customAmount?: string
+): void => {
+  try {
+    // 检查是否已经为此课程记录过奖励
+    const existingRewards = getUserRewards(userAddress);
+    const hasCourseReward = existingRewards.some(
+      reward => reward.type === RewardType.CREATE_COURSE && reward.courseId === courseId
+    );
+
+    if (hasCourseReward) {
+      console.log('⚠️ 该课程的创建奖励已经记录过了');
+      return;
+    }
+
+    const reward = createRewardRecord(
+      RewardType.CREATE_COURSE,
+      `创建课程「${courseId}」获得奖励`,
+      transactionHash,
+      courseId
+    );
+
+    // 如果提供了自定义金额，使用自定义金额
+    if (customAmount) {
+      reward.amount = customAmount;
+    }
+
+    addUserReward(userAddress, reward);
+    console.log('✅ 成功记录创建课程奖励:', reward);
+  } catch (error) {
+    console.error('记录创建课程奖励失败:', error);
+  }
+};
+
+/**
+ * 记录完成课程奖励
+ * @param userAddress - 用户地址
+ * @param courseId - 课程ID
+ * @param courseName - 课程名称（可选）
+ * @param transactionHash - 交易哈希（可选）
+ */
+export const recordCompleteCourseReward = (
+  userAddress: string, 
+  courseId: string, 
+  courseName?: string,
+  transactionHash?: string
+): void => {
+  try {
+    // 检查是否已经为此课程记录过完成奖励
+    const existingRewards = getUserRewards(userAddress);
+    const hasCompletionReward = existingRewards.some(
+      reward => reward.type === RewardType.COMPLETE_COURSE && reward.courseId === courseId
+    );
+
+    if (hasCompletionReward) {
+      console.log('⚠️ 该课程的完成奖励已经记录过了');
+      return;
+    }
+
+    const reward = createRewardRecord(
+      RewardType.COMPLETE_COURSE,
+      `完成课程「${courseName || courseId}」获得奖励`,
+      transactionHash,
+      courseId
+    );
+
+    addUserReward(userAddress, reward);
+    console.log('✅ 成功记录完成课程奖励:', reward);
+  } catch (error) {
+    console.error('记录完成课程奖励失败:', error);
+  }
+};
+
+/**
+ * 记录首次购买奖励
+ * @param userAddress - 用户地址
+ * @param courseId - 课程ID（可选）
+ * @param transactionHash - 交易哈希（可选）
+ */
+export const recordFirstPurchaseReward = (
+  userAddress: string, 
+  courseId?: string,
+  transactionHash?: string
+): void => {
+  try {
+    // 检查是否已经记录过首次购买奖励
+    const existingRewards = getUserRewards(userAddress);
+    const hasFirstPurchaseReward = existingRewards.some(
+      reward => reward.type === RewardType.FIRST_PURCHASE
+    );
+
+    if (hasFirstPurchaseReward) {
+      console.log('⚠️ 首次购买奖励已经记录过了');
+      return;
+    }
+
+    const reward = createRewardRecord(
+      RewardType.FIRST_PURCHASE,
+      '首次购买课程获得奖励',
+      transactionHash,
+      courseId
+    );
+
+    addUserReward(userAddress, reward);
+    console.log('✅ 成功记录首次购买奖励:', reward);
+  } catch (error) {
+    console.error('记录首次购买奖励失败:', error);
+  }
+};
+
+/**
+ * 记录评价课程奖励
+ * @param userAddress - 用户地址
+ * @param courseId - 课程ID
+ * @param courseName - 课程名称（可选）
+ * @param transactionHash - 交易哈希（可选）
+ */
+export const recordReviewCourseReward = (
+  userAddress: string, 
+  courseId: string, 
+  courseName?: string,
+  transactionHash?: string
+): void => {
+  try {
+    // 检查是否已经为此课程记录过评价奖励
+    const existingRewards = getUserRewards(userAddress);
+    const hasReviewReward = existingRewards.some(
+      reward => reward.type === RewardType.REVIEW_COURSE && reward.courseId === courseId
+    );
+
+    if (hasReviewReward) {
+      console.log('⚠️ 该课程的评价奖励已经记录过了');
+      return;
+    }
+
+    const reward = createRewardRecord(
+      RewardType.REVIEW_COURSE,
+      `评价课程「${courseName || courseId}」获得奖励`,
+      transactionHash,
+      courseId
+    );
+
+    addUserReward(userAddress, reward);
+    console.log('✅ 成功记录评价课程奖励:', reward);
+  } catch (error) {
+    console.error('记录评价课程奖励失败:', error);
+  }
 };
 
 // 清除用户所有奖励记录（危险操作）
@@ -226,5 +394,31 @@ export const getRewardStats = (userAddress: string) => {
         [RewardType.REVIEW_COURSE]: 0,
       },
     };
+  }
+};
+
+// 获取特定课程的奖励记录
+export const getCourseRewards = (userAddress: string, courseId: string): UserReward[] => {
+  try {
+    const allRewards = getUserRewards(userAddress);
+    return allRewards.filter(reward => reward.courseId === courseId);
+  } catch (error) {
+    console.error('获取课程奖励记录失败:', error);
+    return [];
+  }
+};
+
+// 检查用户是否已为特定课程获得特定类型的奖励
+export const hasCourseSpecificReward = (
+  userAddress: string, 
+  courseId: string, 
+  rewardType: RewardTypeValue
+): boolean => {
+  try {
+    const courseRewards = getCourseRewards(userAddress, courseId);
+    return courseRewards.some(reward => reward.type === rewardType);
+  } catch (error) {
+    console.error('检查课程特定奖励失败:', error);
+    return false;
   }
 };
