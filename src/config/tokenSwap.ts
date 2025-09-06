@@ -1,6 +1,111 @@
 // YiDeng Token Swap 合约配置
+
+// Token Swap 合约 ABI
+export const TOKEN_SWAP_ABI = [
+  // ETH 换 YD
+  {
+    "inputs": [],
+    "name": "swapETHForYD",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  // YD 换 ETH
+  {
+    "inputs": [{ "name": "_ydAmount", "type": "uint256" }],
+    "name": "swapYDForETH",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  // 获取 ETH 到 YD 汇率
+  {
+    "inputs": [],
+    "name": "getETHToYDRate",
+    "outputs": [{ "name": "rate", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  // 获取 YD 到 ETH 汇率
+  {
+    "inputs": [],
+    "name": "getYDToETHRate",
+    "outputs": [{ "name": "rate", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  // 获取合约余额
+  {
+    "inputs": [],
+    "name": "getContractBalance",
+    "outputs": [{ "name": "ethBalance", "type": "uint256" }, { "name": "ydBalance", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  // 设置汇率（仅管理员）
+  {
+    "inputs": [{ "name": "_newRate", "type": "uint256" }],
+    "name": "setExchangeRate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  // 提取ETH（仅管理员）
+  {
+    "inputs": [{ "name": "_amount", "type": "uint256" }],
+    "name": "withdrawETH",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  // 提取YD（仅管理员）
+  {
+    "inputs": [{ "name": "_amount", "type": "uint256" }],
+    "name": "withdrawYD",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  // 事件
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "buyer", "type": "address" },
+      { "indexed": false, "name": "ethAmount", "type": "uint256" },
+      { "indexed": false, "name": "ydAmount", "type": "uint256" }
+    ],
+    "name": "TokensPurchased",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "seller", "type": "address" },
+      { "indexed": false, "name": "ydAmount", "type": "uint256" },
+      { "indexed": false, "name": "ethAmount", "type": "uint256" }
+    ],
+    "name": "TokensSold",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "name": "newRate", "type": "uint256" }
+    ],
+    "name": "RateUpdated",
+    "type": "event"
+  }
+] as const;
+
+// YiDeng Token Swap 合约配置
 export const TOKEN_SWAP_CONFIG = {
-  // 不同网络的合约地址
+  // 合约地址 - 统一为一个地址，支持多网络
+  CONTRACT_ADDRESS: "0x7Fda3F9367630aDe390135fDA8B87E63592fBcAF",
+  
+  // 合约 ABI
+  CONTRACT_ABI: TOKEN_SWAP_ABI,
+
+  // 不同网络的合约地址（备用配置）
   CONTRACT_ADDRESSES: {
     // 主网
     1: "0x7Fda3F9367630aDe390135fDA8B87E63592fBcAF",
@@ -23,7 +128,7 @@ export const TOKEN_SWAP_CONFIG = {
   // 手续费相关
   BASIS_POINTS: 10000,
 
-  // 支持的网络（移除Hardhat）
+  // 支持的网络
   SUPPORTED_CHAINS: [1, 11155111, 1337], // mainnet, sepolia, ganache
 
   // 本地网络配置
@@ -34,6 +139,12 @@ export const TOKEN_SWAP_CONFIG = {
       rpcUrl: "http://127.0.0.1:7545",
       blockExplorer: "http://localhost:7545",
     },
+  },
+
+  // 默认汇率配置（可通过智能合约动态获取）
+  DEFAULT_RATES: {
+    ETH_TO_YD: "1000", // 1 ETH = 1000 YD
+    YD_TO_ETH: "0.001", // 1 YD = 0.001 ETH
   },
 } as const;
 
