@@ -1,25 +1,32 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useAccount, useBalance, useDisconnect, useChainId } from 'wagmi'
 import { formatEther } from 'viem'
+import type { Address } from 'viem'
 import { ethers } from 'ethers'
 import { getYiDengTokenAddress } from '../config/yidengToken'
+import type { UseWeb3Return } from '../types/web3'
 
 interface UserProfile {
   name: string
   avatar?: string
 }
 
-interface Web3ContextType {
-  isConnected: boolean
-  address: string | undefined
-  balance: string | null
-  ydBalance: string | null  // 一灯币余额
-  disconnect: () => void
-  isLoading: boolean
+interface Web3ContextType extends UseWeb3Return {
   userProfile: UserProfile | null
-  refetchBalance: () => void
-  refetchYdBalance: () => void  // 刷新一灯币余额
-  addTokenToWallet: () => Promise<boolean>  // 添加代币到钱包
+  ydBalance: string | null
+  refetchYdBalance: () => Promise<void>
+  addTokenToWallet: () => Promise<boolean>
+}
+
+// 扩展 Window 接口以包含 ethereum
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: any[] | Record<string, any> }) => Promise<any>
+      on: (event: string, callback: (...args: any[]) => void) => void
+      removeListener: (event: string, callback: (...args: any[]) => void) => void
+    }
+  }
 }
 
 const Web3Context = createContext<Web3ContextType | null>(null)
@@ -32,28 +39,31 @@ interface Web3ProviderProps {
 const ERC20_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
   'function decimals() view returns (uint8)'
-];
+] as const;
 
 export function Web3Provider({ children }: Web3ProviderProps) {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { data: balanceData, isLoading: balanceLoading, refetch: refetchBalanceData } = useBalance({
-    address: address as `0x${string}` | undefined,
+    address: address as Address | undefined,
   })
   const { disconnect } = useDisconnect()
   
   const [balance, setBalance] = useState<string | null>(null)
   const [ydBalance, setYdBalance] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<{ code: number; message: string } | undefined>()
 
   // 获取一灯币余额
-  const fetchYdBalance = async () => {
+  const fetchYdBalance = async (): Promise<void> => {
     if (!address || !isConnected) {
       setYdBalance(null)
       return
     }
 
     try {
+      setError(undefined)
       if (typeof window !== 'undefined' && window.ethereum) {
         const provider = new ethers.BrowserProvider(window.ethereum)
         const tokenAddress = getYiDengTokenAddress(chainId)
@@ -69,36 +79,44 @@ export function Web3Provider({ children }: Web3ProviderProps) {
         const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider)
         
         try {
-          const balanceWei = await tokenContract.balanceOf(address)
-          const decimals = await tokenContract.decimals()
-          const balanceFormatted = ethers.formatUnits(balanceWei, decimals)
+          const [balanceWei, decimals] = await Promise.all([
+            tokenContract.balanceOf(address),
+            tokenContract.decimals()
+          ])
           
+          const balanceFormatted = ethers.formatUnits(balanceWei, decimals)
           setYdBalance(balanceFormatted)
           console.log(`一灯币余额: ${balanceFormatted} YD`)
         } catch (contractError: any) {
           console.error('调用一灯币合约失败:', contractError)
-          // 如果是合约调用失败，设置余额为0而不是null
           setYdBalance('0')
+          setError({ code: contractError.code || -1, message: contractError.message || '合约调用失败' })
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('获取一灯币余额失败:', error)
-      setYdBalance('0') // 设置为0而不是null，避免UI显示问题
+      setYdBalance('0')
+      setError({ code: error.code || -1, message: error.message || '获取余额失败' })
     }
   }
 
   // 刷新ETH余额的函数
-  const refetchBalance = async () => {
+  const refetchBalance = async (): Promise<void> => {
     console.log('🔄 刷新ETH余额...')
     try {
+      setIsLoading(true)
+      setError(undefined)
       await refetchBalanceData()
-    } catch (error) {
+    } catch (error: any) {
       console.error('刷新ETH余额失败:', error)
+      setError({ code: error.code || -1, message: error.message || '刷新失败' })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   // 刷新一灯币余额的函数
-  const refetchYdBalance = async () => {
+  const refetchYdBalance = async (): Promise<void> => {
     console.log('🔄 刷新一灯币余额...')
     await fetchYdBalance()
   }
@@ -133,8 +151,9 @@ export function Web3Provider({ children }: Web3ProviderProps) {
         console.log('❌ 用户取消添加代币到钱包')
         return false
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('添加代币到钱包失败:', error)
+      setError({ code: error.code || -1, message: error.message || '添加代币失败' })
       return false
     }
   }
@@ -160,18 +179,23 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     } else {
       setUserProfile(null)
       setYdBalance(null)
+      setError(undefined)
     }
   }, [isConnected, address, chainId])
 
   const value: Web3ContextType = {
     isConnected,
-    address,
+    address: address as Address | undefined,
     balance,
+    chainId,
+    isLoading: balanceLoading || isLoading,
+    error,
+    refetchBalance,
+    
+    // 额外的上下文特定属性
     ydBalance,
     disconnect,
-    isLoading: balanceLoading,
     userProfile,
-    refetchBalance,
     refetchYdBalance,
     addTokenToWallet,
   }
