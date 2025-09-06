@@ -13,7 +13,7 @@ export interface Course {
   id: string;
   title: string;
   description: string;
-  detailedDescription?: string;
+  detailedDescription: string; // 改为必需字段
   price: string; // 价格单位：一灯币 (YiDeng Token)
   duration: string;
   lessons?: CourseLesson[];

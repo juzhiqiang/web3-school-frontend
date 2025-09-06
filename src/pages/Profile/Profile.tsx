@@ -5,7 +5,7 @@ import { useCourseContract, useMyCoursesContract } from '../../hooks/useCourseCo
 import { getCourse } from '../../utils/courseStorage'
 import { User, Edit3, BookOpen, TrendingUp, Calendar, Star, Award, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
 import { ethers } from 'ethers'
-import type { Course } from '../../types/course'
+import type { Course } from '../../types/courseTypes'
 
 interface CourseData extends Course {
   isPurchased: boolean

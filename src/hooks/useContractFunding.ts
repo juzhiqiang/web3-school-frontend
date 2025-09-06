@@ -16,7 +16,7 @@ export const useContractFunding = () => {
     address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'getContractTokenBalance',
-    enabled: isConnected,
+    query: { enabled: isConnected },
   });
 
   // 更新合约余额状态
@@ -79,7 +79,7 @@ export const useContractFunding = () => {
     address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'owner',
-    enabled: isConnected,
+    query: { enabled: isConnected },
   });
 
   // 检查是否为合约管理员

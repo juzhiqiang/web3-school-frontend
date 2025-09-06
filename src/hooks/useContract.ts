@@ -1,5 +1,4 @@
 import { usePublicClient, useWalletClient } from "wagmi";
-import { Contract } from "ethers";
 import { getContract } from "viem";
 
 // 由于旧的CONTRACTS和ABIS配置不存在，我们创建简化版本
