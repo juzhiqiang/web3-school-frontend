@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff, Wallet, DollarSign } from 'lucide-react'
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
@@ -9,7 +9,6 @@ import toast from 'react-hot-toast'
 function TokenSwap() {
   const { isConnected, address, balance, refetchBalance } = useWeb3()
   const {
-    chainId,
     contractAddress,
     networkName,
     isLocalNetwork,
@@ -39,7 +38,6 @@ function TokenSwap() {
   const {
     isNetworkSupported: isUniswapSupported,
     usdtBalance,
-    usdtAllowance,
     calculateSwapAmount: calculateUniswapAmount,
     swapETHForUSDT,
     swapUSDTForETH,
@@ -389,7 +387,7 @@ function TokenSwap() {
                 <Wallet className="h-6 w-6 text-blue-600" />
                 <span>我的账户余额</span>
                 {isLoading && (
-                  <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" title="更新中..." />
+                  <RefreshCw className={`h-4 w-4 text-blue-500 animate-spin`} />
                 )}
               </h3>
               <div className="text-sm text-gray-500">
@@ -770,10 +768,11 @@ function TokenSwap() {
                     step="0.1"
                     value={swapType === 'yideng' ? slippage : uniswapSlippage}
                     onChange={(e) => {
+                      const value = parseFloat(e.target.value)
                       if (swapType === 'yideng') {
-                        setSlippage(parseFloat(e.target.value))
+                        setSlippage(value)
                       } else {
-                        setUniswapSlippage(parseFloat(e.target.value))
+                        setUniswapSlippage(value)
                       }
                     }}
                     className="w-full accent-blue-600"
@@ -835,7 +834,7 @@ function TokenSwap() {
               <DollarSign className="h-5 w-5 text-purple-500" />
               <span>合约资金库存</span>
               {isLoading && (
-                <RefreshCw className="h-4 w-4 text-purple-500 animate-spin" title="更新中..." />
+                <RefreshCw className={`h-4 w-4 text-purple-500 animate-spin`} />
               )}
             </h3>
             <div className="grid grid-cols-2 gap-4">

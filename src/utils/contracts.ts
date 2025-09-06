@@ -1,7 +1,10 @@
 import { sepolia, mainnet } from 'wagmi/chains'
 
+// 定义合约类型
+type ContractType = 'YD_TOKEN' | 'COURSE_NFT' | 'COURSE_MARKETPLACE'
+
 // 合约地址映射
-export const CONTRACT_ADDRESSES = {
+export const CONTRACT_ADDRESSES: Record<number, Record<ContractType, string>> = {
   [mainnet.id]: {
     YD_TOKEN: import.meta.env.VITE_YD_TOKEN_ADDRESS || '0x0000000000000000000000000000000000000000',
     COURSE_NFT: import.meta.env.VITE_COURSE_NFT_ADDRESS || '0x0000000000000000000000000000000000000000',
@@ -15,7 +18,7 @@ export const CONTRACT_ADDRESSES = {
 }
 
 // 获取当前网络的合约地址
-export const getContractAddress = (chainId: number, contractName: keyof typeof CONTRACT_ADDRESSES[number]) => {
+export const getContractAddress = (chainId: number, contractName: ContractType): string => {
   return CONTRACT_ADDRESSES[chainId]?.[contractName] || CONTRACT_ADDRESSES[mainnet.id][contractName]
 }
 
