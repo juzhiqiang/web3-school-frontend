@@ -43,7 +43,7 @@ const getChains = () => {
 export const config = getDefaultConfig({
   appName: 'Web3 School',
   projectId: import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || 'your-project-id',
-  chains: getChains(),
+  chains: getChains() as readonly [typeof mainnet, ...typeof baseChains],
   ssr: false, // If your dApp uses server side rendering (SSR)
 })
 

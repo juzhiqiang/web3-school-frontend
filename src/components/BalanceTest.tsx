@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccount, useReadContract, useChainId } from 'wagmi'
 import { formatUnits } from 'viem'
 import { TestTube, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react'
@@ -90,11 +90,11 @@ function BalanceTest({ swapContractAddress, userAddress }: BalanceTestProps) {
   })
   
   // 测试用户余额
-  const { data: userBalance, error: balanceError, refetch: refetchBalance } = useReadContract({
+  const { data: userBalance, error: balanceError, refetch } = useReadContract({
     address: (tokenAddressFromContract || manualTokenAddress) as `0x${string}`,
     abi: SIMPLE_ERC20_ABI,
     functionName: 'balanceOf',
-    args: currentUserAddress ? [currentUserAddress] : undefined,
+    args: currentUserAddress ? [currentUserAddress as `0x${string}`] : undefined,
     query: { 
       enabled: !!(tokenAddressFromContract || manualTokenAddress) && !!currentUserAddress,
       retry: 3

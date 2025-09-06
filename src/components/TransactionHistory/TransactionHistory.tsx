@@ -1,6 +1,5 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { 
-  Clock, 
   ArrowUpRight, 
   ArrowDownLeft, 
   ExternalLink,
@@ -8,7 +7,6 @@ import {
   RefreshCw,
   TrendingUp,
   TrendingDown,
-  Calendar,
   Coins
 } from 'lucide-react'
 import type { Transaction, TransactionFilter, TransactionType } from '../../types/transaction'

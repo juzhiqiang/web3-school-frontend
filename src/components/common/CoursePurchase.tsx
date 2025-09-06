@@ -4,9 +4,7 @@ import { useYiDengToken } from '../../hooks/useYiDengToken';
 import type { Course } from '../../types/course';
 import { 
   formatYiDengAmount, 
-  calculatePlatformFee, 
-  getCourseContractAddress,
-  YIDENG_TOKEN_CONFIG 
+  calculatePlatformFee
 } from '../../config/yidengToken';
 import { 
   Coins, ShoppingCart, AlertTriangle, CheckCircle, 
@@ -28,13 +26,11 @@ export const CoursePurchase: React.FC<CoursePurchaseProps> = ({
     balance: ydBalance, 
     hasEnoughBalance, 
     approveToken, 
-    checkAllowance,
     refetchBalance 
   } = useYiDengToken();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
-  const [allowance, setAllowance] = useState('0');
   const [needsApproval, setNeedsApproval] = useState(false);
 
   const platformFee = calculatePlatformFee(course.price);

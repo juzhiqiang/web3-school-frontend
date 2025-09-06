@@ -82,7 +82,7 @@ const ContractFundingWarning: React.FC = () => {
             ) : null}
             
             <button
-              onClick={refetchBalance}
+              onClick={() => refetchBalance()}
               className="inline-flex items-center px-3 py-2 text-xs font-medium text-yellow-700 hover:text-yellow-900"
             >
               <RefreshCw className="h-3 w-3 mr-1" />

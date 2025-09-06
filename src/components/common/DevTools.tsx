@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Settings, Eye, EyeOff, Copy, ExternalLink } from 'lucide-react'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
 import toast from 'react-hot-toast'

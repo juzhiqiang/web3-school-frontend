@@ -2,18 +2,20 @@
 import { YIDENG_REWARDS } from '../config/contract';
 
 // 奖励类型枚举
-export enum RewardType {
-  CREATE_COURSE = 'CREATE_COURSE',
-  COMPLETE_COURSE = 'COMPLETE_COURSE', 
-  FIRST_PURCHASE = 'FIRST_PURCHASE',
-  REVIEW_COURSE = 'REVIEW_COURSE',
-}
+export const RewardType = {
+  CREATE_COURSE: 'CREATE_COURSE',
+  COMPLETE_COURSE: 'COMPLETE_COURSE', 
+  FIRST_PURCHASE: 'FIRST_PURCHASE',
+  REVIEW_COURSE: 'REVIEW_COURSE',
+} as const;
+
+export type RewardTypeValue = typeof RewardType[keyof typeof RewardType];
 
 // 奖励记录接口
 export interface RewardRecord {
   id: string;
   userAddress: string;
-  type: RewardType;
+  type: RewardTypeValue;
   amount: string; // 奖励金额（一灯币）
   description: string; // 奖励描述
   relatedId?: string; // 相关ID（如courseId）

@@ -1,69 +1,68 @@
-import { useProvider, useWalletClient, useSigner } from "wagmi";
-import { Contract, ethers } from "ethers";
-import { CONTRACTS, ABIS } from "../config/web3";
+import { usePublicClient, useWalletClient } from "wagmi";
+import { Contract } from "ethers";
+import { getContract } from "viem";
+
+// 由于旧的CONTRACTS和ABIS配置不存在，我们创建简化版本
+const SIMPLE_ERC20_ABI = [
+  {
+    inputs: [{ internalType: "address", name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "spender", type: "address" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
+    ],
+    name: "approve",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "owner", type: "address" },
+      { internalType: "address", name: "spender", type: "address" },
+    ],
+    name: "allowance",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "decimals",
+    outputs: [{ internalType: "uint8", name: "", type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
 export const useERC20Contract = (tokenAddress: string) => {
+  const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
-  const signer = walletClient ? walletClient.account : null;
-  const provider = useProvider();
 
-  return new Contract(tokenAddress, ABIS.ERC20, signer || provider);
+  if (!publicClient) return null;
+
+  return getContract({
+    address: tokenAddress as `0x${string}`,
+    abi: SIMPLE_ERC20_ABI,
+    client: walletClient || publicClient,
+  });
 };
 
-export const useCourseNFTContract = () => {
-  const { data: signer } = useSigner();
-  const provider = useProvider();
-
-  return new Contract(
-    CONTRACTS.COURSE_NFT,
-    ABIS.COURSE_NFT,
-    signer || provider
-  );
-};
-
-export const useCourseMarketplaceContract = () => {
-  const { data: signer } = useSigner();
-  const provider = useProvider();
-
-  return new Contract(
-    CONTRACTS.COURSE_MARKETPLACE,
-    ABIS.COURSE_MARKETPLACE,
-    signer || provider
-  );
-};
-
-export const useUniswapRouterContract = () => {
-  const { data: signer } = useSigner();
-  const provider = useProvider();
-
-  return new Contract(
-    CONTRACTS.UNISWAP_ROUTER,
-    ABIS.UNISWAP_ROUTER,
-    signer || provider
-  );
-};
-
-export const useAavePoolContract = () => {
-  const { data: signer } = useSigner();
-  const provider = useProvider();
-
-  return new Contract(
-    CONTRACTS.AAVE_LENDING_POOL,
-    ABIS.AAVE_POOL,
-    signer || provider
-  );
-};
-
-// Custom hooks for contract interactions
+// 简化的token balance hook
 export const useTokenBalance = (tokenAddress: string, userAddress?: string) => {
   const contract = useERC20Contract(tokenAddress);
 
   const getBalance = async () => {
     if (!userAddress || !contract) return "0";
     try {
-      const balance = await contract.balanceOf(userAddress);
-      const decimals = await contract.decimals();
-      return ethers.formatUnits(balance, decimals);
+      const balance = await contract.read.balanceOf([userAddress as `0x${string}`]);
+      const decimals = await contract.read.decimals();
+      return (Number(balance) / Math.pow(10, decimals)).toString();
     } catch (error) {
       console.error("Error getting token balance:", error);
       return "0";
@@ -80,13 +79,12 @@ export const useTokenApproval = (
   const contract = useERC20Contract(tokenAddress);
 
   const approve = async (amount: string) => {
-    if (!contract) throw new Error("Contract not initialized");
+    if (!contract || !contract.write) throw new Error("Contract not initialized");
     try {
-      const decimals = await contract.decimals();
-      const amountInWei = ethers.parseUnits(amount, decimals);
-      const tx = await contract.approve(spenderAddress, amountInWei);
-      await tx.wait();
-      return tx.hash;
+      const decimals = await contract.read.decimals();
+      const amountInWei = BigInt(Math.floor(parseFloat(amount) * Math.pow(10, decimals)));
+      const hash = await contract.write.approve([spenderAddress as `0x${string}`, amountInWei]);
+      return hash;
     } catch (error) {
       console.error("Error approving tokens:", error);
       throw error;
@@ -96,9 +94,12 @@ export const useTokenApproval = (
   const getAllowance = async (ownerAddress: string) => {
     if (!contract) return "0";
     try {
-      const allowance = await contract.allowance(ownerAddress, spenderAddress);
-      const decimals = await contract.decimals();
-      return ethers.formatUnits(allowance, decimals);
+      const allowance = await contract.read.allowance([
+        ownerAddress as `0x${string}`, 
+        spenderAddress as `0x${string}`
+      ]);
+      const decimals = await contract.read.decimals();
+      return (Number(allowance) / Math.pow(10, decimals)).toString();
     } catch (error) {
       console.error("Error getting allowance:", error);
       return "0";

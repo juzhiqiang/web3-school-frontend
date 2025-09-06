@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAccount, useReadContract, useWriteContract } from 'wagmi';
-import { parseEther, formatEther } from 'viem';
+import { parseEther } from 'viem';
 import toast from 'react-hot-toast';
 import { COURSE_CONTRACT_CONFIG } from '../../config/courseContract';
 import { getYiDengTokenAddress } from '../../config/yidengToken';
@@ -12,11 +12,11 @@ const ContractTestPanel: React.FC = () => {
   const [testAmount, setTestAmount] = useState('1');
 
   // 查询合约所有者
-  const { data: contractOwner, refetch: refetchOwner } = useReadContract({
+  const { data: contractOwner } = useReadContract({
     address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'owner',
-    enabled: isConnected,
+    query: { enabled: isConnected },
   });
 
   // 查询一灯币合约地址
@@ -24,7 +24,7 @@ const ContractTestPanel: React.FC = () => {
     address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'ydToken',
-    enabled: isConnected,
+    query: { enabled: isConnected },
   });
 
   // 测试合约充值

@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAccount } from 'wagmi';
-import { Gift, Clock, CheckCircle, Trophy, BookOpen, Star, ShoppingCart, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Gift, CheckCircle, Trophy, BookOpen, Star, ShoppingCart, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useOnChainRewards } from '../../hooks/useOnChainRewards';
-import type { OnChainRewardRecord } from '../../hooks/useOnChainRewards';
 
 const RewardHistory: React.FC = () => {
   const { address } = useAccount();

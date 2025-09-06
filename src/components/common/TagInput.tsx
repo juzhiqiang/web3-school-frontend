@@ -1,5 +1,5 @@
-import React, { useState, KeyboardEvent } from 'react';
-import { X, Plus } from 'lucide-react';
+import React, { useState, type KeyboardEvent } from 'react';
+import { X } from 'lucide-react';
 
 interface TagInputProps {
   tags: string[];
