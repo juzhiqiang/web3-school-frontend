@@ -1,132 +1,209 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Bold, Italic, Underline, List, ListOrdered, Quote } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import { Button } from '../ui/button';
+import { Card, CardContent } from '../ui/card';
+import {
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+  Link,
+  Eye,
+  Edit
+} from 'lucide-react';
 
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  className?: string;
+  minHeight?: number;
 }
 
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   value,
   onChange,
-  placeholder = "请输入详细描述...",
-  className = ""
+  placeholder = '请输入内容...',
+  minHeight = 200
 }) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const [isToolbarVisible, setIsToolbarVisible] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  // 移除未使用的 isToolbarVisible 变量
+  // const [isToolbarVisible, setIsToolbarVisible] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const executeCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
-    updateContent();
-  };
+  // 格式化文本
+  const formatText = useCallback((format: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
 
-  const updateContent = () => {
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = value.substring(start, end);
+    
+    let formattedText = '';
+    let newValue = '';
+    let newCursorPos = start;
+
+    switch (format) {
+      case 'bold':
+        formattedText = selectedText ? `**${selectedText}**` : '**粗体文本**';
+        break;
+      case 'italic':
+        formattedText = selectedText ? `*${selectedText}*` : '*斜体文本*';
+        break;
+      case 'underline':
+        formattedText = selectedText ? `<u>${selectedText}</u>` : '<u>下划线文本</u>';
+        break;
+      case 'list':
+        formattedText = selectedText ? `\n- ${selectedText}` : '\n- 列表项';
+        break;
+      case 'ordered-list':
+        formattedText = selectedText ? `\n1. ${selectedText}` : '\n1. 列表项';
+        break;
+      case 'link':
+        formattedText = selectedText ? `[${selectedText}](链接地址)` : '[链接文本](链接地址)';
+        break;
+      default:
+        return;
     }
-  };
 
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
-    updateContent();
-  };
+    newValue = value.substring(0, start) + formattedText + value.substring(end);
+    newCursorPos = start + formattedText.length;
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      switch (e.key) {
-        case 'b':
-          e.preventDefault();
-          executeCommand('bold');
-          break;
-        case 'i':
-          e.preventDefault();
-          executeCommand('italic');
-          break;
-        case 'u':
-          e.preventDefault();
-          executeCommand('underline');
-          break;
+    onChange(newValue);
+    
+    // 设置光标位置
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
       }
-    }
-  };
+    }, 0);
+  }, [value, onChange]);
 
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value;
-    }
-  }, [value]);
-
-  const toolbarButtons = [
-    { command: 'bold', icon: Bold, title: '粗体 (Ctrl+B)' },
-    { command: 'italic', icon: Italic, title: '斜体 (Ctrl+I)' },
-    { command: 'underline', icon: Underline, title: '下划线 (Ctrl+U)' },
-    { command: 'insertUnorderedList', icon: List, title: '无序列表' },
-    { command: 'insertOrderedList', icon: ListOrdered, title: '有序列表' },
-    { command: 'formatBlock', icon: Quote, title: '引用', value: 'blockquote' },
-  ];
+  // 渲染 Markdown 预览（简单版本）
+  const renderPreview = useCallback((text: string) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>')
+      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/^- (.*$)/gm, '<li>$1</li>')
+      .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')
+      .replace(/\n/g, '<br/>');
+  }, []);
 
   return (
-    <div className={`border border-gray-300 rounded-lg overflow-hidden ${className}`}>
-      {/* Toolbar */}
-      <div className="border-b border-gray-200 bg-gray-50 px-3 py-2">
-        <div className="flex items-center space-x-1">
-          {toolbarButtons.map((button, index) => {
-            const IconComponent = button.icon;
-            return (
-              <button
-                key={index}
-                type="button"
-                onClick={() => executeCommand(button.command, button.value)}
-                className="p-2 rounded hover:bg-gray-200 transition-colors"
-                title={button.title}
-              >
-                <IconComponent size={16} />
-              </button>
-            );
-          })}
-          <div className="h-6 w-px bg-gray-300 mx-2" />
-          <select
-            onChange={(e) => executeCommand('formatBlock', e.target.value)}
-            className="text-sm border-0 bg-transparent"
+    <Card className="w-full">
+      <CardContent className="p-0">
+        {/* 工具栏 */}
+        <div className="border-b p-3 flex items-center space-x-2 bg-gray-50">
+          <div className="flex items-center space-x-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => formatText('bold')}
+              disabled={isPreviewMode}
+            >
+              <Bold className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => formatText('italic')}
+              disabled={isPreviewMode}
+            >
+              <Italic className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => formatText('underline')}
+              disabled={isPreviewMode}
+            >
+              <Underline className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          <div className="w-px h-6 bg-gray-300" />
+          
+          <div className="flex items-center space-x-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => formatText('list')}
+              disabled={isPreviewMode}
+            >
+              <List className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => formatText('ordered-list')}
+              disabled={isPreviewMode}
+            >
+              <ListOrdered className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => formatText('link')}
+              disabled={isPreviewMode}
+            >
+              <Link className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          <div className="w-px h-6 bg-gray-300" />
+          
+          <Button
+            variant={isPreviewMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsPreviewMode(!isPreviewMode)}
           >
-            <option value="">格式</option>
-            <option value="h1">标题 1</option>
-            <option value="h2">标题 2</option>
-            <option value="h3">标题 3</option>
-            <option value="p">正文</option>
-          </select>
+            {isPreviewMode ? (
+              <>
+                <Edit className="w-4 h-4 mr-2" />
+                编辑
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4 mr-2" />
+                预览
+              </>
+            )}
+          </Button>
         </div>
-      </div>
 
-      {/* Editor */}
-      <div
-        ref={editorRef}
-        contentEditable
-        onInput={updateContent}
-        onPaste={handlePaste}
-        onKeyDown={handleKeyDown}
-        onFocus={() => setIsToolbarVisible(true)}
-        onBlur={() => setIsToolbarVisible(false)}
-        className="min-h-[200px] p-4 outline-none prose prose-sm max-w-none"
-        style={{ 
-          minHeight: '200px',
-          lineHeight: '1.6'
-        }}
-        suppressContentEditableWarning={true}
-      />
-
-      {/* Placeholder */}
-      {!value && (
-        <div className="absolute top-[60px] left-4 text-gray-400 pointer-events-none">
-          {placeholder}
+        {/* 编辑器内容区域 */}
+        <div className="relative">
+          {isPreviewMode ? (
+            // 预览模式
+            <div 
+              className="p-4 prose max-w-none"
+              style={{ minHeight }}
+              dangerouslySetInnerHTML={{ 
+                __html: value ? renderPreview(value) : '<p class="text-gray-500">暂无内容</p>' 
+              }}
+            />
+          ) : (
+            // 编辑模式
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              className="w-full p-4 border-0 resize-none focus:outline-none focus:ring-0"
+              style={{ minHeight }}
+            />
+          )}
         </div>
-      )}
-    </div>
+
+        {/* 底部提示 */}
+        <div className="border-t p-2 text-xs text-gray-500 bg-gray-50">
+          支持 Markdown 格式：**粗体**、*斜体*、[链接](地址)、- 列表
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

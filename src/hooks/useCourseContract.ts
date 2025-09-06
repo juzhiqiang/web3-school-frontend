@@ -117,7 +117,7 @@ export const useCourseContract = (): UseCourseContractResult => {
   }, []);
 
   // 购买课程（注册课程）
-  const purchaseCourse = useCallback(async (courseId: string, price: string): Promise<{ success: boolean; hash?: string }> => {
+  const purchaseCourse = useCallback(async (courseId: string): Promise<{ success: boolean; hash?: string }> => {
     if (!address) {
       toast.error('请先连接钱包');
       return { success: false };
@@ -207,7 +207,7 @@ export const useCourseContract = (): UseCourseContractResult => {
       console.log('合约中的课程数据:', courseData);
       
       // 如果课程存在，courseData应该不为空且courseId不为空字符串
-      return !!(courseData && courseData.courseId && courseData.courseId !== '');
+      return !!(courseData && (courseData as any).courseId && (courseData as any).courseId !== '');
       
     } catch (err: any) {
       console.error('检查课程存在性失败:', err);
@@ -247,19 +247,19 @@ export const useCourseContract = (): UseCourseContractResult => {
         args: [courseId],
       });
       
-      if (!courseData || !courseData.courseId) {
+      if (!courseData || !(courseData as any).courseId) {
         console.warn(`课程 ${courseId} 不存在于合约中`);
         return null;
       }
       
       // 计算总收入 = 价格 × 总注册数
-      const totalRevenue = (BigInt(courseData.price) * BigInt(courseData.totalEnrollments)).toString();
+      const totalRevenue = (BigInt((courseData as any).price) * BigInt((courseData as any).totalEnrollments)).toString();
       const totalRevenueInEther = formatEther(BigInt(totalRevenue));
       
       const stats = {
-        totalSales: courseData.totalEnrollments.toString(),
+        totalSales: (courseData as any).totalEnrollments.toString(),
         totalRevenue: totalRevenueInEther,
-        studentCount: courseData.totalEnrollments.toString(),
+        studentCount: (courseData as any).totalEnrollments.toString(),
       };
       
       console.log(`课程 ${courseId} 链上统计:`, stats);
@@ -303,9 +303,9 @@ export const useCourseContract = (): UseCourseContractResult => {
             args: [courseId],
           });
           
-          if (courseData && courseData.courseId) {
-            totalStudents += Number(courseData.totalEnrollments);
-            totalRevenue += BigInt(courseData.price) * BigInt(courseData.totalEnrollments);
+          if (courseData && (courseData as any).courseId) {
+            totalStudents += Number((courseData as any).totalEnrollments);
+            totalRevenue += BigInt((courseData as any).price) * BigInt((courseData as any).totalEnrollments);
           }
         } catch (err) {
           console.warn(`获取课程 ${courseId} 统计失败:`, err);

@@ -1,322 +1,184 @@
-import { useState, useEffect, useMemo } from 'react'
-import { useAccount, usePublicClient, useChainId } from 'wagmi'
-import { formatEther, formatUnits } from 'viem'
-import type { 
-  Transaction, 
-  TransactionSummary, 
-  TransactionFilter, 
-  TransactionPagination,
-  TransactionType,
-  TransactionStatus
-} from '../types/transaction'
-import { getContractAddress, getNetworkName } from '../config/tokenSwap'
+import { useState, useCallback, useEffect } from 'react';
+import { useAccount, usePublicClient } from 'wagmi';
+import { formatEther } from 'viem';
+import { TOKEN_SWAP_CONFIG, COURSE_CONTRACT_CONFIG } from '../config/contract';
 
-// TokenSwap合约的事件ABI
-const TOKEN_SWAP_EVENTS = [
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "buyer", type: "address" },
-      { indexed: false, internalType: "uint256", name: "ethAmount", type: "uint256" },
-      { indexed: false, internalType: "uint256", name: "tokenAmount", type: "uint256" },
-      { indexed: false, internalType: "uint256", name: "fee", type: "uint256" }
-    ],
-    name: "TokensPurchased",
-    type: "event"
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "seller", type: "address" },
-      { indexed: false, internalType: "uint256", name: "tokenAmount", type: "uint256" },
-      { indexed: false, internalType: "uint256", name: "ethAmount", type: "uint256" },
-      { indexed: false, internalType: "uint256", name: "fee", type: "uint256" }
-    ],
-    name: "TokensSold",
-    type: "event"
-  }
-] as const
+// 移除未使用的枚举
+// export enum TransactionType {
+//   COURSE_PURCHASE = 'COURSE_PURCHASE',
+//   TOKEN_SWAP = 'TOKEN_SWAP',
+//   REWARD_CLAIM = 'REWARD_CLAIM',
+// }
 
-export function useTransactionHistory(filter?: TransactionFilter) {
-  const { address } = useAccount()
-  const publicClient = usePublicClient()
-  const chainId = useChainId()
+// export enum TransactionStatus {
+//   PENDING = 'PENDING',
+//   SUCCESS = 'SUCCESS',
+//   FAILED = 'FAILED',
+// }
+
+// 移除未使用的常量
+// const TOKEN_SWAP_EVENTS = [
+//   'ETHSwappedForYD',
+//   'YDSwappedForETH',
+// ] as const;
+
+export interface TransactionRecord {
+  hash: string;
+  type: string;
+  status: string;
+  amount: string;
+  token: string;
+  timestamp: number;
+  description: string;
+  blockNumber?: number;
+}
+
+export interface UseTransactionHistoryResult {
+  transactions: TransactionRecord[];
+  isLoading: boolean;
+  error: string | null;
+  refreshHistory: () => Promise<void>;
+  getTransactionDetails: (hash: string) => Promise<TransactionRecord | null>;
+}
+
+export const useTransactionHistory = (): UseTransactionHistoryResult => {
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
   
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [pagination, setPagination] = useState<TransactionPagination>({
-    page: 1,
-    limit: 20,
-    total: 0
-  })
-
-  // 获取合约地址
-  const contractAddress = useMemo(() => {
-    try {
-      return getContractAddress(chainId)
-    } catch {
-      return null
-    }
-  }, [chainId])
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // 获取交易历史
-  const fetchTransactionHistory = async () => {
-    if (!address || !publicClient || !contractAddress) {
-      return
+  const refreshHistory = useCallback(async () => {
+    if (!address || !publicClient) {
+      setTransactions([]);
+      return;
     }
 
     try {
-      setIsLoading(true)
-      setError(null)
+      setIsLoading(true);
+      setError(null);
       
-      console.log('🔍 开始获取交易历史...', {
-        userAddress: address,
-        contractAddress,
-        chainId,
-        networkName: getNetworkName(chainId)
-      })
-
-      const fromBlock = 'earliest' as const
-      const toBlock = 'latest' as const
-
-      // 获取购买代币事件
-      const purchaseEvents = await publicClient.getLogs({
-        address: contractAddress as `0x${string}`,
-        event: {
-          name: 'TokensPurchased',
-          type: 'event',
-          anonymous: false,
-          inputs: [
-            { indexed: true, internalType: "address", name: "buyer", type: "address" },
-            { indexed: false, internalType: "uint256", name: "ethAmount", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "tokenAmount", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "fee", type: "uint256" }
-          ]
-        },
-        args: {
-          buyer: address
-        },
-        fromBlock,
-        toBlock
-      })
-
-      // 获取出售代币事件
-      const sellEvents = await publicClient.getLogs({
-        address: contractAddress as `0x${string}`,
-        event: {
-          name: 'TokensSold',
-          type: 'event',
-          anonymous: false,
-          inputs: [
-            { indexed: true, internalType: "address", name: "seller", type: "address" },
-            { indexed: false, internalType: "uint256", name: "tokenAmount", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "ethAmount", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "fee", type: "uint256" }
-          ]
-        },
-        args: {
-          seller: address
-        },
-        fromBlock,
-        toBlock
-      })
-
-      console.log('📊 获取到事件:', {
-        购买事件: purchaseEvents.length,
-        出售事件: sellEvents.length
-      })
-
-      // 处理购买事件
-      const purchaseTransactions: Transaction[] = await Promise.all(
-        purchaseEvents.map(async (event) => {
-          const block = await publicClient.getBlock({ blockHash: event.blockHash })
-          const transaction = await publicClient.getTransaction({ hash: event.transactionHash })
-          
-          return {
-            id: `${event.transactionHash}-${event.logIndex}`,
-            hash: event.transactionHash,
-            timestamp: Number(block.timestamp) * 1000,
-            blockNumber: Number(event.blockNumber),
-            type: 'buy_tokens' as const,
-            status: 'success' as const,
-            ethAmount: formatEther(event.args.ethAmount || 0n),
-            tokenAmount: formatUnits(event.args.tokenAmount || 0n, 18),
-            from: address,
-            to: contractAddress,
-            direction: 'out' as const, // ETH流出
-            description: `购买一灯币`,
-            fee: formatUnits(event.args.fee || 0n, 18),
-            networkName: getNetworkName(chainId),
-            chainId
+      const allTransactions: TransactionRecord[] = [];
+      
+      // 获取代币兑换交易
+      try {
+        const swapLogs = await publicClient.getLogs({
+          address: TOKEN_SWAP_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+          fromBlock: 'earliest',
+          toBlock: 'latest',
+        });
+        
+        for (const log of swapLogs) {
+          try {
+            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            // 移除未使用的变量
+            // const transaction = await publicClient.getTransaction({ hash: log.transactionHash });
+            
+            allTransactions.push({
+              hash: log.transactionHash,
+              type: '代币兑换',
+              status: '成功',
+              amount: '0', // 需要解析具体金额
+              token: 'YD',
+              timestamp: Number(block.timestamp) * 1000,
+              description: '代币兑换交易',
+              blockNumber: Number(log.blockNumber),
+            });
+          } catch (logError) {
+            console.warn('处理兑换日志失败:', logError);
           }
-        })
-      )
-
-      // 处理出售事件
-      const sellTransactions: Transaction[] = await Promise.all(
-        sellEvents.map(async (event) => {
-          const block = await publicClient.getBlock({ blockHash: event.blockHash })
-          const transaction = await publicClient.getTransaction({ hash: event.transactionHash })
-          
-          return {
-            id: `${event.transactionHash}-${event.logIndex}`,
-            hash: event.transactionHash,
-            timestamp: Number(block.timestamp) * 1000,
-            blockNumber: Number(event.blockNumber),
-            type: 'sell_tokens' as const,
-            status: 'success' as const,
-            ethAmount: formatEther(event.args.ethAmount || 0n),
-            tokenAmount: formatUnits(event.args.tokenAmount || 0n, 18),
-            from: contractAddress,
-            to: address,
-            direction: 'in' as const, // ETH流入
-            description: `出售一灯币`,
-            fee: formatUnits(event.args.fee || 0n, 18),
-            networkName: getNetworkName(chainId),
-            chainId
+        }
+      } catch (swapError) {
+        console.warn('获取兑换交易失败:', swapError);
+      }
+      
+      // 获取课程购买交易
+      try {
+        const courseLogs = await publicClient.getLogs({
+          address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
+          fromBlock: 'earliest',
+          toBlock: 'latest',
+        });
+        
+        for (const log of courseLogs) {
+          try {
+            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            // 移除未使用的变量
+            // const transaction = await publicClient.getTransaction({ hash: log.transactionHash });
+            
+            allTransactions.push({
+              hash: log.transactionHash,
+              type: '课程购买',
+              status: '成功',
+              amount: '0', // 需要解析具体金额
+              token: 'YD',
+              timestamp: Number(block.timestamp) * 1000,
+              description: '课程购买交易',
+              blockNumber: Number(log.blockNumber),
+            });
+          } catch (logError) {
+            console.warn('处理课程日志失败:', logError);
           }
-        })
-      )
-
-      // 合并并按时间排序
-      const allTransactions = [...purchaseTransactions, ...sellTransactions]
-        .sort((a, b) => b.timestamp - a.timestamp)
-
-      console.log('✅ 交易历史处理完成:', {
-        总交易数: allTransactions.length,
-        购买交易: purchaseTransactions.length,
-        出售交易: sellTransactions.length
-      })
-
-      // 应用过滤器
-      const filteredTransactions = applyFilters(allTransactions, filter)
-
-      setTransactions(filteredTransactions)
-      setPagination(prev => ({
-        ...prev,
-        total: filteredTransactions.length
-      }))
-
+        }
+      } catch (courseError) {
+        console.warn('获取课程交易失败:', courseError);
+      }
+      
+      // 按时间戳降序排序
+      allTransactions.sort((a, b) => b.timestamp - a.timestamp);
+      setTransactions(allTransactions);
+      
     } catch (err: any) {
-      console.error('❌ 获取交易历史失败:', err)
-      setError(err.message || '获取交易历史失败')
+      console.error('获取交易历史失败:', err);
+      const errorMessage = err?.message || '获取交易历史失败';
+      setError(errorMessage);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  }, [address, publicClient]);
 
-  // 应用过滤器
-  const applyFilters = (transactions: Transaction[], filter?: TransactionFilter): Transaction[] => {
-    if (!filter) return transactions
-
-    return transactions.filter(tx => {
-      // 类型过滤
-      if (filter.type && filter.type.length > 0 && !filter.type.includes(tx.type)) {
-        return false
-      }
-
-      // 状态过滤
-      if (filter.status && filter.status.length > 0 && !filter.status.includes(tx.status)) {
-        return false
-      }
-
-      // 时间范围过滤
-      if (filter.timeRange) {
-        if (tx.timestamp < filter.timeRange.start || tx.timestamp > filter.timeRange.end) {
-          return false
-        }
-      }
-
-      // 金额过滤
-      if (filter.minAmount && tx.ethAmount) {
-        if (parseFloat(tx.ethAmount) < parseFloat(filter.minAmount)) {
-          return false
-        }
-      }
-      if (filter.maxAmount && tx.ethAmount) {
-        if (parseFloat(tx.ethAmount) > parseFloat(filter.maxAmount)) {
-          return false
-        }
-      }
-
-      return true
-    })
-  }
-
-  // 计算交易统计
-  const transactionSummary: TransactionSummary = useMemo(() => {
-    const buyTxs = transactions.filter(tx => tx.type === 'buy_tokens')
-    const sellTxs = transactions.filter(tx => tx.type === 'sell_tokens')
-    const courseTxs = transactions.filter(tx => tx.type === 'course_purchase' || tx.type === 'course_sale')
-
-    const totalVolumeETH = transactions
-      .reduce((sum, tx) => sum + (tx.ethAmount ? parseFloat(tx.ethAmount) : 0), 0)
-      .toFixed(6)
-
-    const totalVolumeTokens = transactions
-      .reduce((sum, tx) => sum + (tx.tokenAmount ? parseFloat(tx.tokenAmount) : 0), 0)
-      .toFixed(2)
-
-    const totalFees = transactions
-      .reduce((sum, tx) => sum + (tx.fee ? parseFloat(tx.fee) : 0), 0)
-      .toFixed(6)
-
-    const lastTransaction = transactions[0]
-
-    return {
-      totalTransactions: transactions.length,
-      totalVolumeETH,
-      totalVolumeTokens,
-      totalFees,
-      buyTransactions: buyTxs.length,
-      sellTransactions: sellTxs.length,
-      courseTransactions: courseTxs.length,
-      lastTransactionTime: lastTransaction?.timestamp
+  // 获取单个交易详情
+  const getTransactionDetails = useCallback(async (hash: string): Promise<TransactionRecord | null> => {
+    if (!publicClient) return null;
+    
+    try {
+      const transaction = await publicClient.getTransaction({ hash: hash as `0x${string}` });
+      const receipt = await publicClient.getTransactionReceipt({ hash: hash as `0x${string}` });
+      
+      if (!transaction || !receipt) return null;
+      
+      const block = await publicClient.getBlock({ blockNumber: transaction.blockNumber! });
+      
+      return {
+        hash: transaction.hash,
+        type: '未知',
+        status: receipt.status === 'success' ? '成功' : '失败',
+        amount: formatEther(transaction.value),
+        token: 'ETH',
+        timestamp: Number(block.timestamp) * 1000,
+        description: '交易详情',
+        blockNumber: Number(transaction.blockNumber),
+      };
+    } catch (error) {
+      console.error('获取交易详情失败:', error);
+      return null;
     }
-  }, [transactions])
+  }, [publicClient]);
 
-  // 分页后的交易
-  const paginatedTransactions = useMemo(() => {
-    const startIndex = (pagination.page - 1) * pagination.limit
-    const endIndex = startIndex + pagination.limit
-    return transactions.slice(startIndex, endIndex)
-  }, [transactions, pagination.page, pagination.limit])
-
-  // 自动获取数据
+  // 监听地址变化
   useEffect(() => {
-    if (address && publicClient && contractAddress) {
-      fetchTransactionHistory()
-    }
-  }, [address, publicClient, contractAddress, filter])
-
-  // 翻页函数
-  const goToPage = (page: number) => {
-    setPagination(prev => ({ ...prev, page }))
-  }
-
-  const nextPage = () => {
-    if (pagination.page * pagination.limit < pagination.total) {
-      goToPage(pagination.page + 1)
-    }
-  }
-
-  const prevPage = () => {
-    if (pagination.page > 1) {
-      goToPage(pagination.page - 1)
-    }
-  }
+    refreshHistory();
+  }, [refreshHistory]);
 
   return {
-    transactions: paginatedTransactions,
-    allTransactions: transactions,
-    summary: transactionSummary,
+    transactions,
     isLoading,
     error,
-    pagination,
-    goToPage,
-    nextPage,
-    prevPage,
-    refresh: fetchTransactionHistory
-  }
-}
+    refreshHistory,
+    getTransactionDetails,
+  };
+};
+
+export default useTransactionHistory;

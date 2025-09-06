@@ -81,16 +81,17 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
     if (contractError && currentPurchase) {
       console.error('购买交易失败:', contractError);
       console.error('错误详情:', {
-        message: contractError.message,
-        cause: contractError.cause,
-        name: contractError.name
+        message: typeof contractError === 'string' ? contractError : contractError.message,
+        cause: typeof contractError === 'object' ? (contractError as any).cause : undefined,
+        name: typeof contractError === 'object' ? (contractError as any).name : undefined
       });
       
       let errorMessage = '支付失败';
       
       // 解析常见的错误类型
-      if (contractError.message) {
-        const message = contractError.message.toLowerCase();
+      const errorText = typeof contractError === 'string' ? contractError : contractError.message;
+      if (errorText) {
+        const message = errorText.toLowerCase();
         if (message.includes('user rejected') || message.includes('user denied')) {
           errorMessage = '您取消了交易';
         } else if (message.includes('insufficient funds')) {
@@ -106,7 +107,7 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
         } else if (message.includes('network')) {
           errorMessage = '支付失败：网络连接问题';
         } else {
-          errorMessage = `支付失败: ${contractError.message}`;
+          errorMessage = `支付失败: ${errorText}`;
         }
       }
       
@@ -134,8 +135,8 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
 
       toast.loading('正在提交购买交易...', { id: 'purchase-tx' });
 
-      // 调用合约购买
-      const result = await purchaseCourse(courseId, price);
+      // 调用合约购买 - 注意：新的接口不需要price参数
+      const result = await purchaseCourse(courseId);
       
       if (result.success) {
         toast.loading('交易已提交，等待区块链确认...', { id: 'purchase-tx' });
@@ -151,8 +152,9 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
       let errorMessage = '支付失败，请重试';
       
       // 解析错误类型
-      if (err?.message) {
-        const message = err.message.toLowerCase();
+      const errorText = typeof err === 'string' ? err : err?.message;
+      if (errorText) {
+        const message = errorText.toLowerCase();
         if (message.includes('user rejected') || message.includes('user denied')) {
           errorMessage = '您取消了支付';
         } else if (message.includes('insufficient funds')) {
@@ -162,7 +164,7 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
         } else if (message.includes('network')) {
           errorMessage = '支付失败：网络连接问题';
         } else {
-          errorMessage = `支付失败: ${err.message}`;
+          errorMessage = `支付失败: ${errorText}`;
         }
       }
       
@@ -176,7 +178,7 @@ export const useTransactionPurchase = (): UseTransactionPurchaseResult => {
   return {
     purchaseCourseWithVerification,
     isPurchasing: isPurchasing || isPurchaseConfirming,
-    error: error || contractError?.message || null,
+    error: error || (typeof contractError === 'string' ? contractError : contractError?.message) || null,
   };
 };
 
