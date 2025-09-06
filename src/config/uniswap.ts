@@ -1,6 +1,8 @@
 // Uniswap配置文件
 import { Token } from '@uniswap/sdk-core'
 
+type SupportedChainId = 1 | 11155111 | 1337
+
 export const UNISWAP_CONFIG = {
   // Uniswap V3 Router地址
   ROUTER_ADDRESSES: {
@@ -10,14 +12,14 @@ export const UNISWAP_CONFIG = {
     11155111: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
     // Ganache本地网络 - 使用主网地址作为默认（需要fork主网或者部署本地路由器）
     1337: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
-  } as const,
+  } as const satisfies Record<SupportedChainId, string>,
 
   // Uniswap V3 Factory地址
   FACTORY_ADDRESSES: {
     1: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
     11155111: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
     1337: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-  } as const,
+  } as const satisfies Record<SupportedChainId, string>,
 
   // 交易手续费等级
   FEE_TIERS: {
@@ -33,31 +35,31 @@ export const UNISWAP_CONFIG = {
   MIN_SLIPPAGE: 0.1,      // 0.1%
 
   // 支持的网络
-  SUPPORTED_CHAINS: [1, 11155111, 1337], // mainnet, sepolia, ganache
+  SUPPORTED_CHAINS: [1, 11155111, 1337] as const, // mainnet, sepolia, ganache
 } as const
 
 // WETH合约地址
-export const WETH_ADDRESSES: Record<number, string> = {
+export const WETH_ADDRESSES: Record<SupportedChainId, string> = {
   1: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
   11155111: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
   1337: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
 }
 
 // USDT合约地址
-export const USDT_ADDRESSES: Record<number, string> = {
+export const USDT_ADDRESSES: Record<SupportedChainId, string> = {
   1: '0xdAC17F958D2ee523a2206206994597C13D831ec7',        // 主网USDT
   11155111: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06',   // Sepolia测试网USDT
   1337: '0xdAC17F958D2ee523a2206206994597C13D831ec7',     // 本地使用主网地址
 }
 
 // 创建Token实例的辅助函数
-export const createToken = (chainId: number, address: string, decimals: number, symbol: string, name?: string) => {
+export const createToken = (chainId: number, address: string, decimals: number, symbol: string, name?: string): Token => {
   return new Token(chainId, address, decimals, symbol, name)
 }
 
 // 获取WETH Token实例
 export const getWETHToken = (chainId: number): Token => {
-  const address = WETH_ADDRESSES[chainId]
+  const address = WETH_ADDRESSES[chainId as SupportedChainId]
   if (!address) {
     throw new Error(`不支持的网络: ${chainId}`)
   }
@@ -66,7 +68,7 @@ export const getWETHToken = (chainId: number): Token => {
 
 // 获取USDT Token实例
 export const getUSDTToken = (chainId: number): Token => {
-  const address = USDT_ADDRESSES[chainId]
+  const address = USDT_ADDRESSES[chainId as SupportedChainId]
   if (!address) {
     throw new Error(`不支持的网络: ${chainId}`)
   }
@@ -75,7 +77,7 @@ export const getUSDTToken = (chainId: number): Token => {
 
 // 获取Router地址
 export const getRouterAddress = (chainId: number): string => {
-  const address = UNISWAP_CONFIG.ROUTER_ADDRESSES[chainId as keyof typeof UNISWAP_CONFIG.ROUTER_ADDRESSES]
+  const address = UNISWAP_CONFIG.ROUTER_ADDRESSES[chainId as SupportedChainId]
   if (!address) {
     throw new Error(`不支持的网络: ${chainId}`)
   }
@@ -84,11 +86,16 @@ export const getRouterAddress = (chainId: number): string => {
 
 // 获取Factory地址
 export const getFactoryAddress = (chainId: number): string => {
-  const address = UNISWAP_CONFIG.FACTORY_ADDRESSES[chainId as keyof typeof UNISWAP_CONFIG.FACTORY_ADDRESSES]
+  const address = UNISWAP_CONFIG.FACTORY_ADDRESSES[chainId as SupportedChainId]
   if (!address) {
     throw new Error(`不支持的网络: ${chainId}`)
   }
   return address
+}
+
+// 检查网络是否支持
+export const isSupportedChain = (chainId: number): chainId is SupportedChainId => {
+  return UNISWAP_CONFIG.SUPPORTED_CHAINS.includes(chainId as SupportedChainId)
 }
 
 // 错误消息
