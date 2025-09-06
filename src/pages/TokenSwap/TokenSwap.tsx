@@ -55,7 +55,7 @@ function TokenSwap() {
   const [swapMode, setSwapMode] = useState<'buy' | 'sell'>('buy')
   const [uniswapMode, setUniswapMode] = useState<'eth-to-usdt' | 'usdt-to-eth'>('eth-to-usdt')
   const [inputAmount, setInputAmount] = useState('')
-  const [slippage, setSlippage] = useState(TOKEN_SWAP_CONFIG.DEFAULT_SLIPPAGE)
+  const [slippage, setSlippage] = useState<number>(TOKEN_SWAP_CONFIG.DEFAULT_SLIPPAGE)
   const [showAdvanced, setShowAdvanced] = useState(false)
   
   // 计算输出金额

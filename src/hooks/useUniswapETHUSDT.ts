@@ -107,7 +107,7 @@ export function useUniswapETHUSDT() {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const [isLoading, setIsLoading] = useState(false)
-  const [slippage, setSlippage] = useState(UNISWAP_CONFIG.DEFAULT_SLIPPAGE)
+  const [slippage, setSlippage] = useState<number>(UNISWAP_CONFIG.DEFAULT_SLIPPAGE)
 
   // 获取路由器地址
   const routerAddress = useMemo(() => {
