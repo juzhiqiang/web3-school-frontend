@@ -1,12 +1,31 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAccount } from 'wagmi';
-import { Gift, Clock, CheckCircle, Trophy, BookOpen, Star, ShoppingCart, RefreshCw } from 'lucide-react';
+import { Gift, Clock, CheckCircle, Trophy, BookOpen, Star, ShoppingCart, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useOnChainRewards } from '../../hooks/useOnChainRewards';
 import type { OnChainRewardRecord } from '../../hooks/useOnChainRewards';
 
 const RewardHistory: React.FC = () => {
   const { address } = useAccount();
   const { rewards, stats, loading, error, refreshRewards } = useOnChainRewards();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // 计算分页数据
+  const { paginatedRewards, totalPages } = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return {
+      paginatedRewards: rewards.slice(startIndex, endIndex),
+      totalPages: Math.ceil(rewards.length / itemsPerPage)
+    };
+  }, [rewards, currentPage, itemsPerPage]);
+
+  // 重置到第一页（当数据刷新时）
+  const handleRefreshRewards = () => {
+    setCurrentPage(1);
+    refreshRewards();
+  };
+
   if (!address) {
     return null;
   }
@@ -69,7 +88,7 @@ const RewardHistory: React.FC = () => {
             <p className="text-2xl font-bold text-orange-600">{stats.totalRewards}</p>
           </div>
           <button
-            onClick={refreshRewards}
+            onClick={handleRefreshRewards}
             disabled={loading}
             className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
             title="刷新数据"
@@ -127,43 +146,89 @@ const RewardHistory: React.FC = () => {
               <p className="text-sm">创建课程、完成学习等活动将获得一灯币奖励</p>
             </div>
           ) : (
-            rewards.map((reward) => (
-              <div
-                key={reward.id}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  {getRewardIcon(reward.type)}
-                  <div>
-                    <h3 className="font-medium text-gray-900">{reward.description}</h3>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600">
-                      <span>{getRewardTypeLabel(reward.type)}</span>
-                      <span>{formatDate(reward.timestamp)}</span>
-                      <a
-                        href={`https://etherscan.io/tx/${reward.transactionHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        交易哈希: {reward.transactionHash.slice(0, 10)}...
-                      </a>
+            <>
+              {paginatedRewards.map((reward) => (
+                <div
+                  key={reward.id}
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    {getRewardIcon(reward.type)}
+                    <div>
+                      <h3 className="font-medium text-gray-900">{reward.description}</h3>
+                      <div className="flex items-center space-x-4 text-sm text-gray-600">
+                        <span>{getRewardTypeLabel(reward.type)}</span>
+                        <span>{formatDate(reward.timestamp)}</span>
+                        <a
+                          href={`https://etherscan.io/tx/${reward.transactionHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          交易哈希: {reward.transactionHash.slice(0, 10)}...
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-orange-600">+{formatAmount(reward.amount)}</p>
+                      <p className="text-sm text-gray-600">一灯币</p>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="flex items-center text-green-600">
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        <span className="text-sm">已发放</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="text-right">
-                    <p className="font-bold text-lg text-orange-600">+{formatAmount(reward.amount)}</p>
-                    <p className="text-sm text-gray-600">一灯币</p>
+              ))}
+
+              {/* 分页控件 */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    共 {rewards.length} 条记录，第 {currentPage} / {totalPages} 页
                   </div>
-                  <div className="flex items-center">
-                    <div className="flex items-center text-green-600">
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      <span className="text-sm">已发放</span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      上一页
+                    </button>
+                    
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-1 text-sm font-medium rounded-md ${
+                            page === currentPage
+                              ? 'bg-blue-600 text-white'
+                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
                     </div>
+
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      下一页
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </button>
                   </div>
                 </div>
-              </div>
-            ))
+              )}
+            </>
           )}
         </div>
       )}
