@@ -6,9 +6,7 @@ import {
   useWaitForTransactionReceipt,
   useReadContract,
 } from 'wagmi'
-import { parseEther, formatEther, parseUnits, formatUnits, encodeFunctionData } from 'viem'
-import { Token, CurrencyAmount, TradeType, Percent } from '@uniswap/sdk-core'
-import { Pool, Route, Trade, SwapRouter } from '@uniswap/v3-sdk'
+import { parseEther, parseUnits, formatUnits } from 'viem'
 import toast from 'react-hot-toast'
 
 import {
@@ -353,7 +351,7 @@ export function useUniswapETHUSDT() {
   }, [isConfirmed])
 
   // 检查是否支持当前网络
-  const isNetworkSupported = UNISWAP_CONFIG.SUPPORTED_CHAINS.includes(chainId)
+  const isNetworkSupported = UNISWAP_CONFIG.SUPPORTED_CHAINS.includes(chainId as any)
 
   return {
     // 网络信息

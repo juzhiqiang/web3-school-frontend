@@ -51,7 +51,7 @@ export const useCourseContract = (): UseCourseContractResult => {
       const courseCompletionRewardInWei = parseEther(YIDENG_REWARDS.COMPLETE_COURSE);
       
       // 调用智能合约创建课程
-      writeContract({
+      createCourseWrite({
         address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
         abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
         functionName: 'createCourse',
@@ -74,7 +74,7 @@ export const useCourseContract = (): UseCourseContractResult => {
     } finally {
       setIsCreating(false);
     }
-  }, [address, writeContract]);
+  }, [address, createCourseWrite]);
 
   // 获取单个课程信息
   const getCourseInfo = useCallback(async (courseId: string): Promise<Course | null> => {
@@ -139,7 +139,7 @@ export const useCourseContract = (): UseCourseContractResult => {
       }
       
       // 新合约中使用enrollInCourse函数
-      writeContract({
+      purchaseWrite({
         address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
         abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
         functionName: 'enrollInCourse',
@@ -185,7 +185,7 @@ export const useCourseContract = (): UseCourseContractResult => {
     } finally {
       setIsPurchasing(false);
     }
-  }, [address, writeContract]);
+  }, [address, purchaseWrite]);
 
   // 检查课程是否在合约中存在（新增调试功能）
   const checkCourseExistsInContract = useCallback(async (courseId: string): Promise<boolean> => {
@@ -344,7 +344,7 @@ export const useCourseContract = (): UseCourseContractResult => {
       
       const amountInWei = parseEther(amount);
       
-      writeContract({
+      withdrawWrite({
         address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
         abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
         functionName: 'withdrawTokens',
@@ -361,52 +361,69 @@ export const useCourseContract = (): UseCourseContractResult => {
     } finally {
       setIsWithdrawing(false);
     }
-  }, [address, writeContract]);
+  }, [address, withdrawWrite]);
 
   // 监听交易状态
   React.useEffect(() => {
-    if (isSuccess) {
-      // 不再显示通用成功消息，让组件自己处理
-      // 只处理非创建课程的操作
+    if (isPurchaseSuccess) {
       toast.success('操作成功！', { id: 'purchase-course' });
-      toast.success('提取成功！', { id: 'withdraw-earnings' });
     }
-  }, [isSuccess]);
+  }, [isPurchaseSuccess]);
 
   React.useEffect(() => {
-    if (contractError) {
-      const errorMessage = contractError.message || '交易失败';
+    if (isWithdrawSuccess) {
+      toast.success('提取成功！', { id: 'withdraw-earnings' });
+    }
+  }, [isWithdrawSuccess]);
+
+  React.useEffect(() => {
+    if (createContractError) {
+      const errorMessage = createContractError.message || '创建课程失败';
       setError(errorMessage);
       setCreateError(errorMessage);
       toast.error(errorMessage, { 
         id: 'create-course'
       });
+    }
+  }, [createContractError]);
+
+  React.useEffect(() => {
+    if (purchaseContractError) {
+      const errorMessage = purchaseContractError.message || '购买课程失败';
+      setError(errorMessage);
       toast.error(errorMessage, { 
         id: 'purchase-course' 
       });
+    }
+  }, [purchaseContractError]);
+
+  React.useEffect(() => {
+    if (withdrawContractError) {
+      const errorMessage = withdrawContractError.message || '提取收益失败';
+      setError(errorMessage);
       toast.error(errorMessage, { 
         id: 'withdraw-earnings' 
       });
     }
-  }, [contractError]);
+  }, [withdrawContractError]);
 
   return {
-    isLoading: isLoading || isPending || isConfirming,
+    isLoading: isLoading || isCreatePending || isPurchasePending || isWithdrawPending || isCreateConfirming || isPurchaseConfirming || isWithdrawConfirming,
     error,
     
     createCourse,
-    isCreating: isCreating || isPending || isConfirming,
+    isCreating: isCreating || isCreatePending || isCreateConfirming,
     createError,
-    isCreateSuccess: isSuccess, // 添加创建成功状态
+    isCreateSuccess, // 添加创建成功状态
     
     getCourse: getCourseInfo,
     getCreatorCourses: getCreatorCoursesInfo,
     
     purchaseCourse,
-    isPurchasing: isPurchasing || isPending || isConfirming,
-    purchaseHash: hash, // 暴露交易哈希
-    isPurchaseConfirming: isConfirming, // 暴露交易确认状态
-    isPurchaseSuccess: isSuccess, // 暴露交易成功状态
+    isPurchasing: isPurchasing || isPurchasePending || isPurchaseConfirming,
+    purchaseHash, // 暴露交易哈希
+    isPurchaseConfirming, // 暴露交易确认状态
+    isPurchaseSuccess, // 暴露交易成功状态
     
     hasPurchasedCourse,
     checkCourseExistsInContract, // 新增调试功能
@@ -414,7 +431,7 @@ export const useCourseContract = (): UseCourseContractResult => {
     getAuthorStats, // 新增作者统计功能
     
     withdrawEarnings,
-    isWithdrawing: isWithdrawing || isPending || isConfirming,
+    isWithdrawing: isWithdrawing || isWithdrawPending || isWithdrawConfirming,
   };
 };
 
