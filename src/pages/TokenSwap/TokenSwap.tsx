@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff, Wallet, DollarSign } from 'lucide-react'
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
+import { useUniswapETHUSDT } from '../../hooks/useUniswapETHUSDT'
 import { TOKEN_SWAP_CONFIG, ERROR_MESSAGES } from '../../config/tokenSwap'
 import toast from 'react-hot-toast'
 
@@ -34,15 +35,37 @@ function TokenSwap() {
     depositETHToContract,
   } = useTokenSwap(refetchBalance)
   
+  // Uniswap hook
+  const {
+    isNetworkSupported: isUniswapSupported,
+    usdtBalance,
+    usdtAllowance,
+    calculateSwapAmount: calculateUniswapAmount,
+    swapETHForUSDT,
+    swapUSDTForETH,
+    approveUSDT,
+    needsUSDTApproval,
+    slippage: uniswapSlippage,
+    setSlippage: setUniswapSlippage,
+    isLoading: isUniswapLoading,
+    isConfirmed: isUniswapConfirmed,
+    transactionHash: uniswapHash,
+    refetchAll: refetchUniswap
+  } = useUniswapETHUSDT()
+  
+  const [swapType, setSwapType] = useState<'yideng' | 'uniswap'>('yideng')
   const [swapMode, setSwapMode] = useState<'buy' | 'sell'>('buy')
+  const [uniswapMode, setUniswapMode] = useState<'eth-to-usdt' | 'usdt-to-eth'>('eth-to-usdt')
   const [inputAmount, setInputAmount] = useState('')
   const [slippage, setSlippage] = useState(TOKEN_SWAP_CONFIG.DEFAULT_SLIPPAGE)
   const [showAdvanced, setShowAdvanced] = useState(false)
   
   // 计算输出金额
-  const outputAmount = swapMode === 'buy' 
-    ? calculateTokensForETH(inputAmount)
-    : calculateETHForTokens(inputAmount)
+  const outputAmount = swapType === 'yideng' 
+    ? (swapMode === 'buy' 
+        ? calculateTokensForETH(inputAmount)
+        : calculateETHForTokens(inputAmount))
+    : calculateUniswapAmount(inputAmount, uniswapMode === 'eth-to-usdt')
   
   // 重置表单
   const resetForm = () => {
@@ -51,7 +74,7 @@ function TokenSwap() {
   
   // 监听交易确认
   useEffect(() => {
-    if (isConfirmed) {
+    if (isConfirmed || isUniswapConfirmed) {
       toast.success('🎉 兑换已确认！正在更新所有余额...')
       resetForm()
       
@@ -60,24 +83,41 @@ function TokenSwap() {
         toast.success('✅ ETH和代币余额已更新完成！')
       }, 3000)
     }
-  }, [isConfirmed])
+  }, [isConfirmed, isUniswapConfirmed])
   
   // 切换兑换模式
   const toggleSwapMode = () => {
-    setSwapMode(prev => prev === 'buy' ? 'sell' : 'buy')
+    if (swapType === 'yideng') {
+      setSwapMode(prev => prev === 'buy' ? 'sell' : 'buy')
+    } else {
+      setUniswapMode(prev => prev === 'eth-to-usdt' ? 'usdt-to-eth' : 'eth-to-usdt')
+    }
     setInputAmount('')
   }
   
   // 处理最大值
   const handleMaxClick = () => {
-    if (swapMode === 'buy') {
-      if (balance) {
-        // 留出一些ETH作为gas费用
-        const maxAmount = Math.max(0, parseFloat(balance) - 0.01)
-        setInputAmount(maxAmount.toFixed(6))
+    if (swapType === 'yideng') {
+      if (swapMode === 'buy') {
+        if (balance) {
+          // 留出一些ETH作为gas费用
+          const maxAmount = Math.max(0, parseFloat(balance) - 0.01)
+          setInputAmount(maxAmount.toFixed(6))
+        }
+      } else {
+        setInputAmount(parseFloat(userTokenBalance).toFixed(6))
       }
     } else {
-      setInputAmount(parseFloat(userTokenBalance).toFixed(6))
+      // Uniswap模式
+      if (uniswapMode === 'eth-to-usdt') {
+        if (balance) {
+          // 留出一些ETH作为gas费用
+          const maxAmount = Math.max(0, parseFloat(balance) - 0.01)
+          setInputAmount(maxAmount.toFixed(6))
+        }
+      } else {
+        setInputAmount(parseFloat(usdtBalance).toFixed(6))
+      }
     }
   }
   
@@ -85,20 +125,24 @@ function TokenSwap() {
   const isValidInput = (): boolean => {
     if (!inputAmount || parseFloat(inputAmount) <= 0) return false
     
-    if (swapMode === 'buy') {
-      return balance ? parseFloat(inputAmount) <= parseFloat(balance) : false
+    if (swapType === 'yideng') {
+      if (swapMode === 'buy') {
+        return balance ? parseFloat(inputAmount) <= parseFloat(balance) : false
+      } else {
+        return hasEnoughBalance(inputAmount, 'token')
+      }
     } else {
-      return hasEnoughBalance(inputAmount, 'token')
+      // Uniswap模式
+      if (uniswapMode === 'eth-to-usdt') {
+        return balance ? parseFloat(inputAmount) <= parseFloat(balance) : false
+      } else {
+        return parseFloat(inputAmount) <= parseFloat(usdtBalance)
+      }
     }
   }
   
   // 处理兑换
   const handleSwap = async () => {
-    if (!isContractAvailable) {
-      toast.error(ERROR_MESSAGES.CONTRACT_NOT_DEPLOYED)
-      return
-    }
-    
     if (!inputAmount || parseFloat(inputAmount) <= 0) {
       toast.error(ERROR_MESSAGES.INVALID_AMOUNT)
       return
@@ -109,20 +153,42 @@ function TokenSwap() {
       return
     }
     
-    console.log('🚀 开始兑换操作:', {
-      mode: swapMode,
-      inputAmount,
-      slippage,
-      userETHBalance: balance,
-      userTokenBalance,
-      contractETHBalance,
-      contractTokenBalance
-    })
-    
-    if (swapMode === 'buy') {
-      await buyTokens(inputAmount, slippage)
+    if (swapType === 'yideng') {
+      if (!isContractAvailable) {
+        toast.error(ERROR_MESSAGES.CONTRACT_NOT_DEPLOYED)
+        return
+      }
+      
+      console.log('🚀 开始YiDeng兑换操作:', {
+        mode: swapMode,
+        inputAmount,
+        slippage,
+        userETHBalance: balance,
+        userTokenBalance,
+        contractETHBalance,
+        contractTokenBalance
+      })
+      
+      if (swapMode === 'buy') {
+        await buyTokens(inputAmount, slippage)
+      } else {
+        await sellTokens(inputAmount, slippage)
+      }
     } else {
-      await sellTokens(inputAmount, slippage)
+      // Uniswap兑换
+      console.log('🚀 开始Uniswap兑换操作:', {
+        mode: uniswapMode,
+        inputAmount,
+        slippage: uniswapSlippage,
+        userETHBalance: balance,
+        userUSDTBalance: usdtBalance
+      })
+      
+      if (uniswapMode === 'eth-to-usdt') {
+        await swapETHForUSDT(inputAmount)
+      } else {
+        await swapUSDTForETH(inputAmount)
+      }
     }
   }
   
@@ -146,9 +212,22 @@ function TokenSwap() {
     toast.success('授权交易已提交，等待确认后即可进行兑换')
   }
   
+  // 处理USDT授权
+  const handleUSDTApprove = async () => {
+    if (!inputAmount) {
+      toast.error(ERROR_MESSAGES.INVALID_AMOUNT)
+      return
+    }
+    
+    await approveUSDT()
+    toast.success('USDT授权交易已提交，等待确认后即可进行兑换')
+  }
+  
   // 关键修复：改进按钮状态逻辑
   const getButtonConfig = () => {
-    if (!isContractAvailable) {
+    const currentIsLoading = swapType === 'yideng' ? isLoading : isUniswapLoading
+    
+    if (swapType === 'yideng' && !isContractAvailable) {
       return { 
         text: `合约未部署到${networkName}`, 
         disabled: true, 
@@ -157,7 +236,16 @@ function TokenSwap() {
       }
     }
     
-    if (isLoading) {
+    if (swapType === 'uniswap' && !isUniswapSupported) {
+      return {
+        text: '当前网络不支持Uniswap',
+        disabled: true,
+        className: 'bg-red-400',
+        action: undefined
+      }
+    }
+    
+    if (currentIsLoading) {
       return { text: '处理中...', disabled: true, className: 'bg-gray-400' }
     }
     
@@ -169,40 +257,62 @@ function TokenSwap() {
       return { text: '余额不足', disabled: true, className: 'bg-red-400' }
     }
     
-    // 关键修复：出售模式的授权检查逻辑
-    if (swapMode === 'sell') {
-      const needsAuth = needsApproval(inputAmount)
-      console.log('🔐 出售模式按钮状态检查:', {
-        inputAmount,
-        needsApproval: needsAuth,
-        allowance: allowance?.toString(),
-        userTokenBalance: userTokenBalance?.toString()
-      })
-      
-      if (needsAuth) {
-        return { 
-          text: '授权一灯币 (一次性)', 
-          disabled: false, 
-          className: 'bg-yellow-600 hover:bg-yellow-700',
-          action: handleApprove
+    if (swapType === 'yideng') {
+      // YiDeng兑换逻辑
+      if (swapMode === 'sell') {
+        const needsAuth = needsApproval(inputAmount)
+        
+        if (needsAuth) {
+          return { 
+            text: '授权一灯币 (一次性)', 
+            disabled: false, 
+            className: 'bg-yellow-600 hover:bg-yellow-700',
+            action: handleApprove
+          }
+        } else {
+          return {
+            text: '出售一灯币',
+            disabled: false,
+            className: 'bg-red-600 hover:bg-red-700',
+            action: handleSwap
+          }
         }
       } else {
-        // 已授权，显示出售按钮
         return {
-          text: '出售一灯币',
+          text: '购买一灯币',
           disabled: false,
-          className: 'bg-red-600 hover:bg-red-700',
+          className: 'bg-blue-600 hover:bg-blue-700',
           action: handleSwap
         }
       }
-    }
-    
-    // 购买模式直接显示购买按钮
-    return {
-      text: '购买一灯币',
-      disabled: false,
-      className: 'bg-blue-600 hover:bg-blue-700',
-      action: handleSwap
+    } else {
+      // Uniswap兑换逻辑
+      if (uniswapMode === 'usdt-to-eth') {
+        const needsAuth = needsUSDTApproval(inputAmount)
+        
+        if (needsAuth) {
+          return {
+            text: '授权USDT (一次性)',
+            disabled: false,
+            className: 'bg-yellow-600 hover:bg-yellow-700',
+            action: handleUSDTApprove
+          }
+        } else {
+          return {
+            text: 'USDT换ETH',
+            disabled: false,
+            className: 'bg-purple-600 hover:bg-purple-700',
+            action: handleSwap
+          }
+        }
+      } else {
+        return {
+          text: 'ETH换USDT',
+          disabled: false,
+          className: 'bg-green-600 hover:bg-green-700',
+          action: handleSwap
+        }
+      }
     }
   }
   
@@ -259,6 +369,7 @@ function TokenSwap() {
             <button
               onClick={() => {
                 refetchAll()
+                refetchUniswap()
                 toast.success('🔄 正在刷新数据...')
               }}
               className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
@@ -286,13 +397,13 @@ function TokenSwap() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-3 gap-4">
               {/* ETH 余额 */}
               <div className="text-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4">
-                <div className="text-3xl font-bold text-blue-700 mb-1">
+                <div className="text-2xl font-bold text-blue-700 mb-1">
                   {balance ? parseFloat(balance).toFixed(4) : '0.0000'}
                 </div>
-                <div className="text-lg font-medium text-gray-600">ETH</div>
+                <div className="text-sm font-medium text-gray-600">ETH</div>
                 <div className="text-xs text-gray-500 mt-1">
                   以太坊
                 </div>
@@ -300,12 +411,23 @@ function TokenSwap() {
               
               {/* 一灯币余额 */}
               <div className="text-center bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg p-4">
-                <div className="text-3xl font-bold text-orange-600 mb-1">
+                <div className="text-2xl font-bold text-orange-600 mb-1">
                   {parseFloat(userTokenBalance).toFixed(2)}
                 </div>
-                <div className="text-lg font-medium text-gray-600">YD</div>
+                <div className="text-sm font-medium text-gray-600">YD</div>
                 <div className="text-xs text-gray-500 mt-1">
                   一灯币
+                </div>
+              </div>
+
+              {/* USDT 余额 */}
+              <div className="text-center bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4">
+                <div className="text-2xl font-bold text-green-600 mb-1">
+                  {parseFloat(usdtBalance).toFixed(2)}
+                </div>
+                <div className="text-sm font-medium text-gray-600">USDT</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  稳定币
                 </div>
               </div>
             </div>
@@ -369,45 +491,101 @@ function TokenSwap() {
         
         {/* 兑换界面 */}
         <div className="bg-white rounded-xl shadow-lg p-6">
-          {/* 兑换模式选择 */}
-          <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+          {/* 兑换类型选择 */}
+          <div className="flex mb-4 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg p-1">
             <button
-              onClick={() => setSwapMode('buy')}
+              onClick={() => setSwapType('yideng')}
               className={`flex-1 py-2 px-4 rounded-md transition-all ${
-                swapMode === 'buy'
+                swapType === 'yideng'
                   ? 'bg-white shadow-sm text-blue-600 font-medium'
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
-              购买一灯币
+              一灯币兑换
             </button>
             <button
-              onClick={() => setSwapMode('sell')}
+              onClick={() => setSwapType('uniswap')}
               className={`flex-1 py-2 px-4 rounded-md transition-all ${
-                swapMode === 'sell'
-                  ? 'bg-white shadow-sm text-red-600 font-medium'
+                swapType === 'uniswap'
+                  ? 'bg-white shadow-sm text-purple-600 font-medium'
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
-              出售一灯币
+              Uniswap ETH-USDT
             </button>
           </div>
+
+          {/* 兑换模式选择 */}
+          {swapType === 'yideng' ? (
+            <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setSwapMode('buy')}
+                className={`flex-1 py-2 px-4 rounded-md transition-all ${
+                  swapMode === 'buy'
+                    ? 'bg-white shadow-sm text-blue-600 font-medium'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                购买一灯币
+              </button>
+              <button
+                onClick={() => setSwapMode('sell')}
+                className={`flex-1 py-2 px-4 rounded-md transition-all ${
+                  swapMode === 'sell'
+                    ? 'bg-white shadow-sm text-red-600 font-medium'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                出售一灯币
+              </button>
+            </div>
+          ) : (
+            <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setUniswapMode('eth-to-usdt')}
+                className={`flex-1 py-2 px-4 rounded-md transition-all ${
+                  uniswapMode === 'eth-to-usdt'
+                    ? 'bg-white shadow-sm text-green-600 font-medium'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                ETH 换 USDT
+              </button>
+              <button
+                onClick={() => setUniswapMode('usdt-to-eth')}
+                className={`flex-1 py-2 px-4 rounded-md transition-all ${
+                  uniswapMode === 'usdt-to-eth'
+                    ? 'bg-white shadow-sm text-purple-600 font-medium'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                USDT 换 ETH
+              </button>
+            </div>
+          )}
           
           {/* 输入框 */}
           <div className="space-y-4">
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm font-medium text-gray-700">
-                  {swapMode === 'buy' ? '支付' : '出售'}
+                  {swapType === 'yideng' 
+                    ? (swapMode === 'buy' ? '支付' : '出售')
+                    : (uniswapMode === 'eth-to-usdt' ? '支付' : '出售')
+                  }
                 </label>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">
                     余额: 
                   </span>
                   <span className="text-sm font-semibold text-blue-600">
-                    {swapMode === 'buy' 
-                      ? (balance ? `${parseFloat(balance).toFixed(6)} ETH` : '0 ETH')
-                      : `${parseFloat(userTokenBalance).toFixed(6)} YD`
+                    {swapType === 'yideng' 
+                      ? (swapMode === 'buy' 
+                          ? (balance ? `${parseFloat(balance).toFixed(6)} ETH` : '0 ETH')
+                          : `${parseFloat(userTokenBalance).toFixed(6)} YD`)
+                      : (uniswapMode === 'eth-to-usdt'
+                          ? (balance ? `${parseFloat(balance).toFixed(6)} ETH` : '0 ETH')
+                          : `${parseFloat(usdtBalance).toFixed(6)} USDT`)
                     }
                   </span>
                 </div>
@@ -420,16 +598,19 @@ function TokenSwap() {
                   placeholder="0.0"
                   step="any"
                   min="0"
-                  disabled={!isContractAvailable}
+                  disabled={swapType === 'yideng' ? !isContractAvailable : !isUniswapSupported}
                   className="flex-1 text-2xl font-bold bg-transparent border-none outline-none placeholder-gray-400 disabled:opacity-50"
                 />
                 <div className="flex items-center space-x-2">
                   <span className="font-medium text-gray-700">
-                    {swapMode === 'buy' ? 'ETH' : 'YD'}
+                    {swapType === 'yideng' 
+                      ? (swapMode === 'buy' ? 'ETH' : 'YD')
+                      : (uniswapMode === 'eth-to-usdt' ? 'ETH' : 'USDT')
+                    }
                   </span>
                   <button
                     onClick={handleMaxClick}
-                    disabled={!isContractAvailable}
+                    disabled={swapType === 'yideng' ? !isContractAvailable : !isUniswapSupported}
                     className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     最大
@@ -442,7 +623,7 @@ function TokenSwap() {
             <div className="flex justify-center">
               <button
                 onClick={toggleSwapMode}
-                disabled={!isContractAvailable}
+                disabled={swapType === 'yideng' ? !isContractAvailable : !isUniswapSupported}
                 className="bg-white border border-gray-200 rounded-full p-3 shadow-md hover:shadow-lg transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ArrowUpDown className="h-5 w-5 text-gray-500 group-hover:text-blue-500 transition-colors" />
@@ -455,61 +636,109 @@ function TokenSwap() {
                 <label className="text-sm font-medium text-gray-700">
                   预计获得
                 </label>
-                {inputAmount && isContractAvailable && (
+                {inputAmount && ((swapType === 'yideng' && isContractAvailable) || (swapType === 'uniswap' && isUniswapSupported)) && (
                   <span className="text-xs text-gray-500">
-                    扣除手续费后
+                    {swapType === 'yideng' ? '扣除手续费后' : '基于当前汇率'}
                   </span>
                 )}
               </div>
               <div className="flex items-center space-x-3">
                 <div className="flex-1 text-2xl font-bold text-gray-900">
-                  {outputAmount && isContractAvailable ? parseFloat(outputAmount).toFixed(6) : '0.0'}
+                  {outputAmount && ((swapType === 'yideng' && isContractAvailable) || (swapType === 'uniswap' && isUniswapSupported)) ? parseFloat(outputAmount).toFixed(6) : '0.0'}
                 </div>
                 <span className="font-medium text-gray-700">
-                  {swapMode === 'buy' ? 'YD' : 'ETH'}
+                  {swapType === 'yideng' 
+                    ? (swapMode === 'buy' ? 'YD' : 'ETH')
+                    : (uniswapMode === 'eth-to-usdt' ? 'USDT' : 'ETH')
+                  }
                 </span>
               </div>
             </div>
           </div>
           
-          {/* 授权状态提示（仅出售模式显示） */}
-          {swapMode === 'sell' && inputAmount && parseFloat(inputAmount) > 0 && isContractAvailable && (
-            <div className="mt-4 bg-gray-50 rounded-lg p-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">授权状态:</span>
-                <span className={`font-medium ${needsApproval(inputAmount) ? 'text-yellow-600' : 'text-green-600'}`}>
-                  {needsApproval(inputAmount) ? '需要授权' : '已授权'}
-                </span>
-              </div>
-              {needsApproval(inputAmount) ? (
-                <p className="text-xs text-yellow-600 mt-1">
-                  出售一灯币前需要先授权合约使用您的代币（一次性授权，之后无需重复）
-                </p>
-              ) : (
-                <p className="text-xs text-green-600 mt-1">
-                  ✅ 已授权，可以直接进行兑换
-                </p>
+          {/* 授权状态提示 */}
+          {inputAmount && parseFloat(inputAmount) > 0 && (
+            <>
+              {/* YiDeng 出售模式授权提示 */}
+              {swapType === 'yideng' && swapMode === 'sell' && isContractAvailable && (
+                <div className="mt-4 bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">授权状态:</span>
+                    <span className={`font-medium ${needsApproval(inputAmount) ? 'text-yellow-600' : 'text-green-600'}`}>
+                      {needsApproval(inputAmount) ? '需要授权' : '已授权'}
+                    </span>
+                  </div>
+                  {needsApproval(inputAmount) ? (
+                    <p className="text-xs text-yellow-600 mt-1">
+                      出售一灯币前需要先授权合约使用您的代币（一次性授权，之后无需重复）
+                    </p>
+                  ) : (
+                    <p className="text-xs text-green-600 mt-1">
+                      ✅ 已授权，可以直接进行兑换
+                    </p>
+                  )}
+                </div>
               )}
-            </div>
+              
+              {/* Uniswap USDT换ETH模式授权提示 */}
+              {swapType === 'uniswap' && uniswapMode === 'usdt-to-eth' && isUniswapSupported && (
+                <div className="mt-4 bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">USDT授权状态:</span>
+                    <span className={`font-medium ${needsUSDTApproval(inputAmount) ? 'text-yellow-600' : 'text-green-600'}`}>
+                      {needsUSDTApproval(inputAmount) ? '需要授权' : '已授权'}
+                    </span>
+                  </div>
+                  {needsUSDTApproval(inputAmount) ? (
+                    <p className="text-xs text-yellow-600 mt-1">
+                      使用USDT换ETH前需要先授权Uniswap合约使用您的USDT（一次性授权，之后无需重复）
+                    </p>
+                  ) : (
+                    <p className="text-xs text-green-600 mt-1">
+                      ✅ USDT已授权，可以直接进行兑换
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
           
           {/* 交易详情 */}
-          {inputAmount && parseFloat(inputAmount) > 0 && isContractAvailable && (
+          {inputAmount && parseFloat(inputAmount) > 0 && ((swapType === 'yideng' && isContractAvailable) || (swapType === 'uniswap' && isUniswapSupported)) && (
             <div className="mt-4 bg-blue-50 rounded-lg p-4">
               <h4 className="text-sm font-medium text-blue-800 mb-2">交易详情</h4>
               <div className="text-xs text-blue-700 space-y-1">
-                <div className="flex justify-between">
-                  <span>兑换率</span>
-                  <span>1 ETH = {exchangeRate.toLocaleString()} YD</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>手续费</span>
-                  <span>{swapMode === 'buy' ? feeRates.buyFee : feeRates.sellFee}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>滑点容差</span>
-                  <span>{slippage}%</span>
-                </div>
+                {swapType === 'yideng' ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span>兑换率</span>
+                      <span>1 ETH = {exchangeRate.toLocaleString()} YD</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>手续费</span>
+                      <span>{swapMode === 'buy' ? feeRates.buyFee : feeRates.sellFee}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>滑点容差</span>
+                      <span>{slippage}%</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span>交易对</span>
+                      <span>ETH/USDT</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>滑点容差</span>
+                      <span>{uniswapSlippage}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>交易平台</span>
+                      <span>Uniswap V3</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between">
                   <span>网络</span>
                   <span>{networkName}</span>
@@ -519,7 +748,7 @@ function TokenSwap() {
           )}
           
           {/* 高级设置 */}
-          {isContractAvailable && (
+          {((swapType === 'yideng' && isContractAvailable) || (swapType === 'uniswap' && isUniswapSupported)) && (
             <div className="mt-6">
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
@@ -532,21 +761,32 @@ function TokenSwap() {
               {showAdvanced && (
                 <div className="bg-gray-50 rounded-lg p-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    滑点容差: {slippage}%
+                    滑点容差: {swapType === 'yideng' ? slippage : uniswapSlippage}%
                   </label>
                   <input
                     type="range"
-                    min={TOKEN_SWAP_CONFIG.MIN_SLIPPAGE}
-                    max={TOKEN_SWAP_CONFIG.MAX_SLIPPAGE}
+                    min={swapType === 'yideng' ? TOKEN_SWAP_CONFIG.MIN_SLIPPAGE : 0.1}
+                    max={swapType === 'yideng' ? TOKEN_SWAP_CONFIG.MAX_SLIPPAGE : 5.0}
                     step="0.1"
-                    value={slippage}
-                    onChange={(e) => setSlippage(parseFloat(e.target.value))}
+                    value={swapType === 'yideng' ? slippage : uniswapSlippage}
+                    onChange={(e) => {
+                      if (swapType === 'yideng') {
+                        setSlippage(parseFloat(e.target.value))
+                      } else {
+                        setUniswapSlippage(parseFloat(e.target.value))
+                      }
+                    }}
                     className="w-full accent-blue-600"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>{TOKEN_SWAP_CONFIG.MIN_SLIPPAGE}%</span>
-                    <span>{TOKEN_SWAP_CONFIG.MAX_SLIPPAGE}%</span>
+                    <span>{swapType === 'yideng' ? TOKEN_SWAP_CONFIG.MIN_SLIPPAGE : 0.1}%</span>
+                    <span>{swapType === 'yideng' ? TOKEN_SWAP_CONFIG.MAX_SLIPPAGE : 5.0}%</span>
                   </div>
+                  {swapType === 'uniswap' && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      ⚠️ Uniswap交易具有价格波动风险，建议设置适当的滑点容差
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -564,21 +804,24 @@ function TokenSwap() {
           </div>
           
           {/* 交易状态 */}
-          {transactionHash && (
+          {((transactionHash && swapType === 'yideng') || (uniswapHash && swapType === 'uniswap')) && (
             <div className="mt-4 p-4 bg-blue-50 rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
                 <CheckCircle className="h-5 w-5 text-blue-500" />
                 <span className="text-sm font-medium text-blue-700">
-                  {isConfirmed ? '交易已确认' : '交易已提交'}
+                  {(swapType === 'yideng' && isConfirmed) || (swapType === 'uniswap' && isUniswapConfirmed) ? '交易已确认' : '交易已提交'}
                 </span>
               </div>
               <p className="text-xs text-blue-600 break-all">
-                交易哈希: {transactionHash}
+                交易哈希: {swapType === 'yideng' ? transactionHash : uniswapHash}
               </p>
               <p className="text-xs text-blue-500 mt-1">
                 网络: {networkName}
               </p>
-              {!isConfirmed && (
+              <p className="text-xs text-blue-500 mt-1">
+                交易类型: {swapType === 'yideng' ? '一灯币兑换' : 'Uniswap ETH-USDT'}
+              </p>
+              {!((swapType === 'yideng' && isConfirmed) || (swapType === 'uniswap' && isUniswapConfirmed)) && (
                 <p className="text-xs text-blue-500 mt-1">等待区块确认中...</p>
               )}
             </div>

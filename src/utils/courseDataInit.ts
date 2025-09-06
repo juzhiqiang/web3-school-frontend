@@ -223,7 +223,6 @@ export const initializeSampleCourses = (): void => {
   try {
     // 检查是否已有课程数据
     const existingCourses = getAllCourses();
-    
     if (existingCourses.length === 0) {
       console.log('正在初始化示例课程数据...');
       

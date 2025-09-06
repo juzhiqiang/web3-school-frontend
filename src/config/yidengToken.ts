@@ -20,16 +20,16 @@ export const YIDENG_TOKEN_CONFIG = {
 
   // 合约地址（从 tokenSwap 配置继承）
   CONTRACT_ADDRESSES: {
-    1: "0x651EFdE2d1FC77c2F247B6fe42c09648caB69882",
-    11155111: "0x651EFdE2d1FC77c2F247B6fe42c09648caB69882", 
-    1337: "0x651EFdE2d1FC77c2F247B6fe42c09648caB69882",
+    1: "0x4Eeb26f6874941CE37b0cdc1DC860B8828cE0c67",
+    11155111: "0x4Eeb26f6874941CE37b0cdc1DC860B8828cE0c67", 
+    1337: "0x4Eeb26f6874941CE37b0cdc1DC860B8828cE0c67",
   } as const,
 
   // 课程合约地址（使用courseContract.ts中的地址）
   COURSE_CONTRACT_ADDRESSES: {
-    1: "0xea6e47911B5f76B81B2a18E8C674380372295f9C",
-    11155111: "0xea6e47911B5f76B81B2a18E8C674380372295f9C",
-    1337: "0xea6e47911B5f76B81B2a18E8C674380372295f9C",
+    1: "0x4FEBFADb3243d780001846D81180494363742580",
+    11155111: "0x4FEBFADb3243d780001846D81180494363742580",
+    1337: "0x4FEBFADb3243d780001846D81180494363742580",
   } as const,
 
   // 支持的网络
@@ -58,7 +58,7 @@ export const getCourseContractAddress = (chainId: number): string => {
   if (!address) {
     // 使用courseContract.ts中的固定地址作为默认值
     console.warn(`课程合约未配置在网络 ${chainId}，使用默认地址`);
-    return "0xea6e47911B5f76B81B2a18E8C674380372295f9C";
+    return "0x4FEBFADb3243d780001846D81180494363742580";
   }
   
   return address;
