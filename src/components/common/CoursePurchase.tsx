@@ -31,6 +31,7 @@ export const CoursePurchase: React.FC<CoursePurchaseProps> = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [allowance, setAllowance] = useState('0');
   const [needsApproval, setNeedsApproval] = useState(false);
 
   const platformFee = calculatePlatformFee(course.price);

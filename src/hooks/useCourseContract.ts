@@ -6,7 +6,6 @@ import { COURSE_CONTRACT_CONFIG } from '../config/courseContract';
 import { YIDENG_REWARDS } from '../config/contract';
 import type { 
   Course, 
-  CourseLesson, 
   CreateCourseFormData, 
   UseCourseContractResult 
 } from '../types/courseTypes';
@@ -15,10 +14,18 @@ import { getCourse, getCreatorCourseIds, hasPurchased } from '../utils/courseSto
 export const useCourseContract = (): UseCourseContractResult => {
   const { address } = useAccount();
   const publicClient = usePublicClient();
-  const { writeContract, data: hash, error: contractError, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
+  
+  // 创建课程的写入合约hook
+  const { writeContract: createCourseWrite, data: createHash, error: createContractError, isPending: isCreatePending } = useWriteContract();
+  const { isLoading: isCreateConfirming, isSuccess: isCreateSuccess } = useWaitForTransactionReceipt({ hash: createHash });
+  
+  // 购买课程的写入合约hook  
+  const { writeContract: purchaseWrite, data: purchaseHash, error: purchaseContractError, isPending: isPurchasePending } = useWriteContract();
+  const { isLoading: isPurchaseConfirming, isSuccess: isPurchaseSuccess } = useWaitForTransactionReceipt({ hash: purchaseHash });
+  
+  // 提取收益的写入合约hook
+  const { writeContract: withdrawWrite, data: withdrawHash, error: withdrawContractError, isPending: isWithdrawPending } = useWriteContract();
+  const { isLoading: isWithdrawConfirming, isSuccess: isWithdrawSuccess } = useWaitForTransactionReceipt({ hash: withdrawHash });
 
   // 状态管理
   const [isLoading, setIsLoading] = useState(false);
@@ -200,7 +207,7 @@ export const useCourseContract = (): UseCourseContractResult => {
       console.log('合约中的课程数据:', courseData);
       
       // 如果课程存在，courseData应该不为空且courseId不为空字符串
-      return courseData && courseData.courseId && courseData.courseId !== '';
+      return !!(courseData && courseData.courseId && courseData.courseId !== '');
       
     } catch (err: any) {
       console.error('检查课程存在性失败:', err);
@@ -420,7 +427,7 @@ export const useMyCoursesContract = () => {
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'getAuthorCourses', // 新合约中的函数名
     args: address ? [address] : undefined,
-    enabled: !!address,
+    query: { enabled: !!address },
   });
 
   const { data: purchasedCourseIds } = useReadContract({
@@ -428,7 +435,7 @@ export const useMyCoursesContract = () => {
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'getStudentCourses', // 新合约中的函数名
     args: address ? [address] : undefined,
-    enabled: !!address,
+    query: { enabled: !!address },
   });
 
   return {
@@ -444,7 +451,7 @@ export const useCourseDetails = (courseId: string | undefined) => {
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'getCourse',
     args: courseId ? [courseId] : undefined, // 使用string类型，不是BigInt
-    enabled: !!courseId,
+    query: { enabled: !!courseId },
   });
 
   const { data: courseStats } = useReadContract({
@@ -452,7 +459,7 @@ export const useCourseDetails = (courseId: string | undefined) => {
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'getCourseStats',
     args: courseId ? [courseId] : undefined, // 使用string类型，不是BigInt
-    enabled: !!courseId,
+    query: { enabled: !!courseId },
   });
 
   return {

@@ -78,11 +78,11 @@ export const useTokenApproval = (
   const contract = useERC20Contract(tokenAddress);
 
   const approve = async (amount: string) => {
-    if (!contract || !contract.write) throw new Error("Contract not initialized");
+    if (!contract) throw new Error("Contract not initialized");
     try {
       const decimals = await contract.read.decimals();
       const amountInWei = BigInt(Math.floor(parseFloat(amount) * Math.pow(10, decimals)));
-      const hash = await contract.write.approve([spenderAddress as `0x${string}`, amountInWei]);
+      const hash = await contract.write?.approve([spenderAddress as `0x${string}`, amountInWei]);
       return hash;
     } catch (error) {
       console.error("Error approving tokens:", error);

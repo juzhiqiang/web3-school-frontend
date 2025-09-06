@@ -50,11 +50,10 @@ export const PurchaseStepIndicator: React.FC<PurchaseStepIndicatorProps> = ({
       <h4 className="font-medium text-blue-800 mb-3">购买进度</h4>
       
       <div className="space-y-3">
-        {steps.map((step, index) => {
+        {steps.map((step) => {
           const IconComponent = step.icon
           const isActive = step.status === 'active'
           const isCompleted = step.status === 'completed'
-          const isPending = step.status === 'pending'
           
           return (
             <div key={step.id} className="flex items-center space-x-3">

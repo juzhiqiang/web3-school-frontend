@@ -90,7 +90,7 @@ function BalanceTest({ swapContractAddress, userAddress }: BalanceTestProps) {
   })
   
   // 测试用户余额
-  const { data: userBalance, error: balanceError, refetch } = useReadContract({
+  const { data: userBalance, error: balanceError } = useReadContract({
     address: (tokenAddressFromContract || manualTokenAddress) as `0x${string}`,
     abi: SIMPLE_ERC20_ABI,
     functionName: 'balanceOf',

@@ -93,7 +93,7 @@ export interface UseCourseContractResult {
   getCreatorCourses: (creatorAddress: string) => Promise<string[]>;
   
   // 购买课程
-  purchaseCourse: (courseId: string, price: string) => Promise<void>;
+  purchaseCourse: (courseId: string, price: string) => Promise<{ success: boolean; hash?: string }>;
   isPurchasing: boolean;
   
   // 检查是否已购买

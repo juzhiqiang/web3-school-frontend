@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Bold, Italic, Underline, List, ListOrdered, Quote } from 'lucide-react';
 
 interface RichTextEditorProps {
@@ -15,6 +15,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   className = ""
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const [isToolbarVisible, setIsToolbarVisible] = useState(false);
 
   const executeCommand = (command: string, value?: string) => {
     document.execCommand(command, false, value);

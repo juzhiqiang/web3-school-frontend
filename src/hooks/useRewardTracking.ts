@@ -97,7 +97,7 @@ export const useRewardTracking = () => {
     address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     eventName: 'CoursePublishReward',
-    enabled: isConnected,
+    query: { enabled: isConnected },
     onLogs(logs) {
       
       logs.forEach((log, index) => {
@@ -154,7 +154,7 @@ export const useRewardTracking = () => {
     address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'ydToken',
-    enabled: isConnected,
+    query: { enabled: isConnected },
   });
 
   // 检查课程合约是否有足够的一灯币余额
@@ -162,7 +162,7 @@ export const useRewardTracking = () => {
     address: COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`,
     abi: COURSE_CONTRACT_CONFIG.CONTRACT_ABI,
     functionName: 'getContractTokenBalance',
-    enabled: isConnected,
+    query: { enabled: isConnected },
   });
 
   useEffect(() => {
