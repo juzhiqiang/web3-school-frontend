@@ -1,26 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
 import { formatEther } from 'viem';
-import { TOKEN_SWAP_CONFIG, COURSE_CONTRACT_CONFIG } from '../config/contract';
-
-// 移除未使用的枚举
-// export enum TransactionType {
-//   COURSE_PURCHASE = 'COURSE_PURCHASE',
-//   TOKEN_SWAP = 'TOKEN_SWAP',
-//   REWARD_CLAIM = 'REWARD_CLAIM',
-// }
-
-// export enum TransactionStatus {
-//   PENDING = 'PENDING',
-//   SUCCESS = 'SUCCESS',
-//   FAILED = 'FAILED',
-// }
-
-// 移除未使用的常量
-// const TOKEN_SWAP_EVENTS = [
-//   'ETHSwappedForYD',
-//   'YDSwappedForETH',
-// ] as const;
+import { TOKEN_SWAP_CONFIG } from '../config/tokenSwap';
+import { COURSE_CONTRACT_CONFIG } from '../config/courseContract';
 
 export interface TransactionRecord {
   hash: string;
@@ -73,8 +55,6 @@ export const useTransactionHistory = (): UseTransactionHistoryResult => {
         for (const log of swapLogs) {
           try {
             const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-            // 移除未使用的变量
-            // const transaction = await publicClient.getTransaction({ hash: log.transactionHash });
             
             allTransactions.push({
               hash: log.transactionHash,
@@ -105,8 +85,6 @@ export const useTransactionHistory = (): UseTransactionHistoryResult => {
         for (const log of courseLogs) {
           try {
             const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-            // 移除未使用的变量
-            // const transaction = await publicClient.getTransaction({ hash: log.transactionHash });
             
             allTransactions.push({
               hash: log.transactionHash,
