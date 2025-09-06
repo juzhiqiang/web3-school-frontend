@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { useWeb3 } from '../contexts/Web3Context';
-import { TOKEN_SWAP_CONFIG } from '../config/contract';
+import { TOKEN_SWAP_CONFIG } from '../config/tokenSwap';
 import toast from 'react-hot-toast';
 
 export interface UseTokenSwapResult {
@@ -36,7 +36,10 @@ export const useTokenSwap = (): UseTokenSwapResult => {
 
   // Get ETH to YD exchange rate
   const getETHToYDRate = useCallback(async (): Promise<string> => {
-    if (!publicClient) return '0';
+    if (!publicClient) {
+      console.warn('公共客户端未初始化，返回默认汇率');
+      return TOKEN_SWAP_CONFIG.DEFAULT_RATES.ETH_TO_YD;
+    }
     
     try {
       const rate = await publicClient.readContract({
@@ -49,13 +52,17 @@ export const useTokenSwap = (): UseTokenSwapResult => {
       return formatEther(rate as bigint);
     } catch (error) {
       console.error('获取ETH到YD汇率失败:', error);
-      return '0';
+      // 返回默认汇率
+      return TOKEN_SWAP_CONFIG.DEFAULT_RATES.ETH_TO_YD;
     }
   }, [publicClient]);
 
   // Get YD to ETH exchange rate
   const getYDToETHRate = useCallback(async (): Promise<string> => {
-    if (!publicClient) return '0';
+    if (!publicClient) {
+      console.warn('公共客户端未初始化，返回默认汇率');
+      return TOKEN_SWAP_CONFIG.DEFAULT_RATES.YD_TO_ETH;
+    }
     
     try {
       const rate = await publicClient.readContract({
@@ -68,7 +75,8 @@ export const useTokenSwap = (): UseTokenSwapResult => {
       return formatEther(rate as bigint);
     } catch (error) {
       console.error('获取YD到ETH汇率失败:', error);
-      return '0';
+      // 返回默认汇率
+      return TOKEN_SWAP_CONFIG.DEFAULT_RATES.YD_TO_ETH;
     }
   }, [publicClient]);
 
@@ -102,9 +110,9 @@ export const useTokenSwap = (): UseTokenSwapResult => {
       const errorMessage = err?.message || '兑换失败';
       setSwapError(errorMessage);
       toast.error(errorMessage);
-      return false;
-    } finally {
       setIsSwapping(false);
+      setCurrentSwapType(null);
+      return false;
     }
   }, [address, swapWrite]);
 
@@ -137,9 +145,9 @@ export const useTokenSwap = (): UseTokenSwapResult => {
       const errorMessage = err?.message || '兑换失败';
       setSwapError(errorMessage);
       toast.error(errorMessage);
-      return false;
-    } finally {
       setIsSwapping(false);
+      setCurrentSwapType(null);
+      return false;
     }
   }, [address, swapWrite]);
 
@@ -174,6 +182,10 @@ export const useTokenSwap = (): UseTokenSwapResult => {
       const successMessage = currentSwapType === 'eth-to-yd' ? 'ETH兑换YD成功！' : 'YD兑换ETH成功！';
       toast.success(successMessage);
       
+      // Clear loading toast
+      toast.dismiss('swap-eth-yd');
+      toast.dismiss('swap-yd-eth');
+      
       // Refresh balances
       setTimeout(() => {
         refetchEthBalance();
@@ -181,6 +193,7 @@ export const useTokenSwap = (): UseTokenSwapResult => {
       }, 2000);
       
       setCurrentSwapType(null);
+      setIsSwapping(false);
     }
   }, [isSwapSuccess, currentSwapType, refetchEthBalance, refetchYdBalance]);
 
@@ -189,7 +202,13 @@ export const useTokenSwap = (): UseTokenSwapResult => {
       const errorMessage = swapContractError.message || '兑换失败';
       setSwapError(errorMessage);
       toast.error(errorMessage);
+      
+      // Clear loading toast
+      toast.dismiss('swap-eth-yd');
+      toast.dismiss('swap-yd-eth');
+      
       setCurrentSwapType(null);
+      setIsSwapping(false);
     }
   }, [swapContractError]);
 
