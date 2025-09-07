@@ -114,6 +114,9 @@ npm run dev
 4. **导入测试账户**
    ```
    私钥: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+   🪙 YDToken: 0x3C816e095bc0BfC4C272f6E118D4308CD811E77E
+💱 YiDengTokenSwap: 0x6B31cF03e32CD7aCb1b6D6ad9D32651D43F86dBC
+📚 CourseManager: 0xFB44007b2660D8750b5F6083d9e983ad5f34eF3c
    ```
 
 详细设置请参考 [LOCAL_TESTNET_SETUP.md](./LOCAL_TESTNET_SETUP.md)
