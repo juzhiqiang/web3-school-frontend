@@ -17,52 +17,41 @@ import {
   UNISWAP_ERROR_MESSAGES,
 } from '../config/uniswap'
 
-// Uniswap V3 Router ABI (简化版)
-const UNISWAP_ROUTER_ABI = [
+// Uniswap V2 Router ABI
+const UNISWAP_V2_ROUTER_ABI = [
   {
     inputs: [
-      {
-        components: [
-          { internalType: 'address', name: 'tokenIn', type: 'address' },
-          { internalType: 'address', name: 'tokenOut', type: 'address' },
-          { internalType: 'uint24', name: 'fee', type: 'uint24' },
-          { internalType: 'address', name: 'recipient', type: 'address' },
-          { internalType: 'uint256', name: 'deadline', type: 'uint256' },
-          { internalType: 'uint256', name: 'amountIn', type: 'uint256' },
-          { internalType: 'uint256', name: 'amountOutMinimum', type: 'uint256' },
-          { internalType: 'uint160', name: 'sqrtPriceLimitX96', type: 'uint160' },
-        ],
-        internalType: 'struct ISwapRouter.ExactInputSingleParams',
-        name: 'params',
-        type: 'tuple',
-      },
+      { internalType: 'uint256', name: 'amountOutMin', type: 'uint256' },
+      { internalType: 'address[]', name: 'path', type: 'address[]' },
+      { internalType: 'address', name: 'to', type: 'address' },
+      { internalType: 'uint256', name: 'deadline', type: 'uint256' },
     ],
-    name: 'exactInputSingle',
-    outputs: [{ internalType: 'uint256', name: 'amountOut', type: 'uint256' }],
+    name: 'swapExactETHForTokens',
+    outputs: [{ internalType: 'uint256[]', name: 'amounts', type: 'uint256[]' }],
     stateMutability: 'payable',
     type: 'function',
   },
   {
     inputs: [
-      {
-        components: [
-          { internalType: 'address', name: 'tokenIn', type: 'address' },
-          { internalType: 'address', name: 'tokenOut', type: 'address' },
-          { internalType: 'uint24', name: 'fee', type: 'uint24' },
-          { internalType: 'address', name: 'recipient', type: 'address' },
-          { internalType: 'uint256', name: 'deadline', type: 'uint256' },
-          { internalType: 'uint256', name: 'amountOut', type: 'uint256' },
-          { internalType: 'uint256', name: 'amountInMaximum', type: 'uint256' },
-          { internalType: 'uint160', name: 'sqrtPriceLimitX96', type: 'uint160' },
-        ],
-        internalType: 'struct ISwapRouter.ExactOutputSingleParams',
-        name: 'params',
-        type: 'tuple',
-      },
+      { internalType: 'uint256', name: 'amountIn', type: 'uint256' },
+      { internalType: 'uint256', name: 'amountOutMin', type: 'uint256' },
+      { internalType: 'address[]', name: 'path', type: 'address[]' },
+      { internalType: 'address', name: 'to', type: 'address' },
+      { internalType: 'uint256', name: 'deadline', type: 'uint256' },
     ],
-    name: 'exactOutputSingle',
-    outputs: [{ internalType: 'uint256', name: 'amountIn', type: 'uint256' }],
-    stateMutability: 'payable',
+    name: 'swapExactTokensForETH',
+    outputs: [{ internalType: 'uint256[]', name: 'amounts', type: 'uint256[]' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'amountIn', type: 'uint256' },
+      { internalType: 'address[]', name: 'path', type: 'address[]' },
+    ],
+    name: 'getAmountsOut',
+    outputs: [{ internalType: 'uint256[]', name: 'amounts', type: 'uint256[]' }],
+    stateMutability: 'view',
     type: 'function',
   },
 ] as const
@@ -160,6 +149,35 @@ export function useUniswapETHUSDT() {
     },
   })
 
+  // 获取交易汇率（使用Uniswap V2 Router的getAmountsOut函数）
+  const { data: ethToUsdtAmounts } = useReadContract({
+    address: routerAddress as `0x${string}`,
+    abi: UNISWAP_V2_ROUTER_ABI,
+    functionName: 'getAmountsOut',
+    args: wethToken && usdtToken ? [
+      parseEther('1'), // 1 ETH
+      [wethToken.address as `0x${string}`, usdtToken.address as `0x${string}`]
+    ] : undefined,
+    query: {
+      enabled: !!routerAddress && !!wethToken && !!usdtToken,
+      refetchInterval: 30000, // 30秒刷新一次汇率
+    }
+  })
+
+  const { data: usdtToEthAmounts } = useReadContract({
+    address: routerAddress as `0x${string}`,
+    abi: UNISWAP_V2_ROUTER_ABI,
+    functionName: 'getAmountsOut',
+    args: usdtToken && wethToken ? [
+      parseUnits('1000', 6), // 1000 USDT
+      [usdtToken.address as `0x${string}`, wethToken.address as `0x${string}`]
+    ] : undefined,
+    query: {
+      enabled: !!routerAddress && !!wethToken && !!usdtToken,
+      refetchInterval: 30000, // 30秒刷新一次汇率
+    }
+  })
+
   const { writeContract, data: hash, error, isPending } = useWriteContract()
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash })
 
@@ -173,25 +191,34 @@ export function useUniswapETHUSDT() {
     }
   }
 
-  // 计算交易价格（简化版本，实际应该调用Uniswap的quoter）
+  // 计算交易价格（使用真实的Uniswap V2汇率）
   const calculateSwapAmount = (inputAmount: string, isETHToUSDT: boolean): string => {
     if (!inputAmount || parseFloat(inputAmount) <= 0) return '0'
     
     try {
-      // 这是一个简化的汇率计算，实际应该使用Uniswap的Price Oracle
-      // 假设1 ETH = 2500 USDT（实际应该从链上获取）
-      const mockETHUSDTRate = 2500
-      
-      if (isETHToUSDT) {
+      if (isETHToUSDT && ethToUsdtAmounts && ethToUsdtAmounts.length > 1) {
         // ETH -> USDT
-        const usdtAmount = parseFloat(inputAmount) * mockETHUSDTRate
-        const fee = usdtAmount * (UNISWAP_CONFIG.FEE_TIERS.MEDIUM / 1000000) // 0.3%手续费
-        return (usdtAmount - fee).toFixed(6)
-      } else {
+        const ethAmountWei = parseEther(inputAmount)
+        const oneEthInUSDT = ethToUsdtAmounts[1] // getAmountsOut返回的第二个值是输出代币数量
+        const expectedUSDT = (ethAmountWei * oneEthInUSDT) / parseEther('1')
+        return formatUnits(expectedUSDT, usdtToken?.decimals || 6)
+      } else if (!isETHToUSDT && usdtToEthAmounts && usdtToEthAmounts.length > 1) {
         // USDT -> ETH
-        const ethAmount = parseFloat(inputAmount) / mockETHUSDTRate
-        const fee = ethAmount * (UNISWAP_CONFIG.FEE_TIERS.MEDIUM / 1000000) // 0.3%手续费
-        return (ethAmount - fee).toFixed(18)
+        const usdtAmountWei = parseUnits(inputAmount, usdtToken?.decimals || 6)
+        const oneThousandUSDTInETH = usdtToEthAmounts[1]
+        const expectedETH = (usdtAmountWei * oneThousandUSDTInETH) / parseUnits('1000', 6)
+        return formatUnits(expectedETH, 18)
+      } else {
+        // 回退到静态汇率（如果无法获取实时汇率）
+        const mockETHUSDTRate = 2500
+        
+        if (isETHToUSDT) {
+          const usdtAmount = parseFloat(inputAmount) * mockETHUSDTRate
+          return usdtAmount.toFixed(6)
+        } else {
+          const ethAmount = parseFloat(inputAmount) / mockETHUSDTRate
+          return ethAmount.toFixed(18)
+        }
       }
     } catch (error) {
       console.error('计算交换金额失败:', error)
@@ -238,7 +265,7 @@ export function useUniswapETHUSDT() {
     }
   }
 
-  // ETH换USDT
+  // ETH换USDT (使用Uniswap V2)
   const swapETHForUSDT = async (ethAmount: string) => {
     if (!isConnected || !address || !routerAddress || !wethToken || !usdtToken) {
       toast.error(UNISWAP_ERROR_MESSAGES.NETWORK_NOT_SUPPORTED)
@@ -256,22 +283,14 @@ export function useUniswapETHUSDT() {
         usdtToken.decimals
       )
 
-      const params = {
-        tokenIn: wethToken.address as `0x${string}`,
-        tokenOut: usdtToken.address as `0x${string}`,
-        fee: UNISWAP_CONFIG.FEE_TIERS.MEDIUM,
-        recipient: address,
-        deadline: BigInt(deadline),
-        amountIn,
-        amountOutMinimum: minAmountOut,
-        sqrtPriceLimitX96: BigInt(0),
-      }
+      // Uniswap V2 交易路径：ETH -> USDT
+      const path = [wethToken.address as `0x${string}`, usdtToken.address as `0x${string}`]
 
       await writeContract({
         address: routerAddress as `0x${string}`,
-        abi: UNISWAP_ROUTER_ABI,
-        functionName: 'exactInputSingle',
-        args: [params],
+        abi: UNISWAP_V2_ROUTER_ABI,
+        functionName: 'swapExactETHForTokens',
+        args: [minAmountOut, path, address, BigInt(deadline)],
         value: amountIn,
       })
 
@@ -284,7 +303,7 @@ export function useUniswapETHUSDT() {
     }
   }
 
-  // USDT换ETH
+  // USDT换ETH (使用Uniswap V2)
   const swapUSDTForETH = async (usdtAmount: string) => {
     if (!isConnected || !address || !routerAddress || !wethToken || !usdtToken) {
       toast.error(UNISWAP_ERROR_MESSAGES.NETWORK_NOT_SUPPORTED)
@@ -306,22 +325,14 @@ export function useUniswapETHUSDT() {
         (parseFloat(expectedETH) * (1 - slippage / 100)).toFixed(18)
       )
 
-      const params = {
-        tokenIn: usdtToken.address as `0x${string}`,
-        tokenOut: wethToken.address as `0x${string}`,
-        fee: UNISWAP_CONFIG.FEE_TIERS.MEDIUM,
-        recipient: address,
-        deadline: BigInt(deadline),
-        amountIn,
-        amountOutMinimum: minAmountOut,
-        sqrtPriceLimitX96: BigInt(0),
-      }
+      // Uniswap V2 交易路径：USDT -> ETH
+      const path = [usdtToken.address as `0x${string}`, wethToken.address as `0x${string}`]
 
       await writeContract({
         address: routerAddress as `0x${string}`,
-        abi: UNISWAP_ROUTER_ABI,
-        functionName: 'exactInputSingle',
-        args: [params],
+        abi: UNISWAP_V2_ROUTER_ABI,
+        functionName: 'swapExactTokensForETH',
+        args: [amountIn, minAmountOut, path, address, BigInt(deadline)],
       })
 
       toast.success('USDT换ETH交易已提交，等待确认...')
