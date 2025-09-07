@@ -7,11 +7,11 @@ export const UNISWAP_CONFIG = {
   // Uniswap V3 Router地址
   ROUTER_ADDRESSES: {
     // 主网
-    1: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
+    1: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',
     // Sepolia测试网
-    11155111: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
+    11155111: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',
     // Ganache本地网络 - 使用主网地址作为默认（需要fork主网或者部署本地路由器）
-    1337: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
+    1337: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',
   } as const satisfies Record<SupportedChainId, string>,
 
   // Uniswap V3 Factory地址
@@ -48,7 +48,7 @@ export const WETH_ADDRESSES: Record<SupportedChainId, string> = {
 // USDT合约地址
 export const USDT_ADDRESSES: Record<SupportedChainId, string> = {
   1: '0xdAC17F958D2ee523a2206206994597C13D831ec7',        // 主网USDT
-  11155111: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06',   // Sepolia测试网USDT
+  11155111: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',   // Sepolia测试网USDT
   1337: '0xdAC17F958D2ee523a2206206994597C13D831ec7',     // 本地使用主网地址
 }
 
