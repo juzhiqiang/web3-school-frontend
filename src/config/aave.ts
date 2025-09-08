@@ -3,11 +3,8 @@ export const AAVE_CONFIG = {
   // 支持的网络
   SUPPORTED_NETWORKS: {
     1: 'mainnet',
-    5: 'goerli',
-    137: 'polygon',
-    42161: 'arbitrum',
-    10: 'optimism',
-    43114: 'avalanche',
+    11155111: 'sepolia',
+    1337: 'ganache',
   },
 
   // 主网配置
@@ -26,8 +23,7 @@ export const AAVE_CONFIG = {
     explorerUrl: 'https://etherscan.io',
   },
 
-  // Polygon 配置
-  POLYGON: {
+  SEPOLIA: {
     chainId: 137,
     name: 'Polygon',
     poolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
@@ -49,7 +45,7 @@ export const AAVE_CONFIG = {
   },
 
   // 测试网络配置
-  GOERLI: {
+  GANACHE: {
     chainId: 5,
     name: 'Goerli Testnet',
     poolAddress: '0x368EedF3f56ad10b9bC57eed4Dac65B26Bb667f6',
