@@ -47,6 +47,8 @@ function TokenSwap() {
   // Uniswap hook
   const {
     isNetworkSupported: isUniswapSupported,
+    usdtToken,
+    routerAddress,
     usdtBalance,
     calculateSwapAmount: calculateUniswapAmount,
     swapETHForUSDT,
@@ -234,7 +236,14 @@ function TokenSwap() {
       return;
     }
 
-    await approveUSDT();
+    console.log("开始USDT授权:", {
+      inputAmount,
+      usdtToken: usdtToken?.address,
+      routerAddress,
+      isUniswapSupported
+    });
+
+    await approveUSDT(inputAmount);
     toast.success("USDT授权交易已提交，等待确认后即可进行兑换");
   };
 
@@ -753,7 +762,7 @@ function TokenSwap() {
                       </div>
                       <div className="flex justify-between">
                         <span>交易平台</span>
-                        <span>Uniswap V3</span>
+                        <span>uniswap v2</span>
                       </div>
                     </>
                   )}

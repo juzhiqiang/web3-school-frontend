@@ -15,7 +15,7 @@ import {
   getNetworkName,
   ERROR_MESSAGES,
 } from "../config/tokenSwap";
-import type { SwapResult, FeeRates } from "../types/web3";
+import type { SwapResult } from "../types/web3";
 
 // 完整的合约ABI，包含充值函数
 const TOKEN_SWAP_ABI = [

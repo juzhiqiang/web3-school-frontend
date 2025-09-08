@@ -1,33 +1,28 @@
-// Uniswap配置文件
+// Uniswap V2配置文件
 import { Token } from '@uniswap/sdk-core'
 
 type SupportedChainId = 1 | 11155111 | 1337
 
 export const UNISWAP_CONFIG = {
-  // Uniswap V3 Router地址
+  // Uniswap V2 Router地址
   ROUTER_ADDRESSES: {
     // 主网
-    1: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',
+    1: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
     // Sepolia测试网
-    11155111: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',
+    11155111: '0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3',
     // Ganache本地网络 - 使用主网地址作为默认（需要fork主网或者部署本地路由器）
-    1337: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',
+    1337: '0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3',
   } as const satisfies Record<SupportedChainId, string>,
 
-  // Uniswap V3 Factory地址
+  // Uniswap V2 Factory地址
   FACTORY_ADDRESSES: {
-    1: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-    11155111: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-    1337: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
+    1: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
+    11155111: '0xF62c03E08ada871A0bEb309762E260a7a6a880E6',
+    1337: '0xF62c03E08ada871A0bEb309762E260a7a6a880E6',
   } as const satisfies Record<SupportedChainId, string>,
 
-  // 交易手续费等级
-  FEE_TIERS: {
-    LOWEST: 100,    // 0.01%
-    LOW: 500,       // 0.05%
-    MEDIUM: 3000,   // 0.3%
-    HIGH: 10000,    // 1%
-  } as const,
+  // Uniswap V2 固定手续费
+  FEE_RATE: 3000,   // 0.3% (V2中固定为0.3%)
 
   // 默认滑点设置
   DEFAULT_SLIPPAGE: 0.5,  // 0.5%
@@ -42,14 +37,14 @@ export const UNISWAP_CONFIG = {
 export const WETH_ADDRESSES: Record<SupportedChainId, string> = {
   1: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
   11155111: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
-  1337: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+  1337: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
 }
 
 // USDT合约地址
 export const USDT_ADDRESSES: Record<SupportedChainId, string> = {
   1: '0xdAC17F958D2ee523a2206206994597C13D831ec7',        // 主网USDT
   11155111: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',   // Sepolia测试网USDT
-  1337: '0xdAC17F958D2ee523a2206206994597C13D831ec7',     // 本地使用主网地址
+  1337: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',     // 本地使用主网地址
 }
 
 // 创建Token实例的辅助函数
