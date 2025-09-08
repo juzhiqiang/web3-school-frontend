@@ -1,3 +1,9 @@
+                          {swapMode === "buy"
+                            ? feeRates.buyFee
+                            : feeRates.sellFee}
+                          %
+                        </span>
+                      </div>
                       <div className="flex justify-between">
                         <span>滑点容差</span>
                         <span>{slippage}%</span>
