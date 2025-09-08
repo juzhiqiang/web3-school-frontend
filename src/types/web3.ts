@@ -1,4 +1,5 @@
 import type { Address } from 'viem'
+import type { ethers } from 'ethers'
 
 // 网络配置类型
 export interface NetworkConfig {
@@ -94,7 +95,7 @@ export interface SwapResult {
   outputAmount?: string
 }
 
-// Hook 返回值类型
+// Hook 返回值类型 - 添加 provider 和 signer
 export interface UseWeb3Return {
   isConnected: boolean
   address?: Address
@@ -103,6 +104,9 @@ export interface UseWeb3Return {
   isLoading: boolean
   error?: Web3Error
   refetchBalance: () => Promise<void>
+  // 新增的 provider 和 signer
+  provider?: ethers.BrowserProvider
+  signer?: ethers.JsonRpcSigner
 }
 
 export interface UseTokenSwapReturn {

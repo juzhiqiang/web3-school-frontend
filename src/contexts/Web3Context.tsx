@@ -54,44 +54,74 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<{ code: number; message: string } | undefined>()
+  
+  // 新增: provider 和 signer 状态
+  const [provider, setProvider] = useState<ethers.BrowserProvider | undefined>()
+  const [signer, setSigner] = useState<ethers.JsonRpcSigner | undefined>()
+
+  // 初始化 provider 和 signer
+  const initializeProviderAndSigner = async () => {
+    if (typeof window !== 'undefined' && window.ethereum && isConnected) {
+      try {
+        console.log('🔧 初始化 provider 和 signer...')
+        
+        const browserProvider = new ethers.BrowserProvider(window.ethereum)
+        setProvider(browserProvider)
+        
+        // 获取 signer
+        const ethSigner = await browserProvider.getSigner()
+        setSigner(ethSigner)
+        
+        console.log('✅ Provider 和 Signer 初始化成功', {
+          providerNetwork: await browserProvider.getNetwork(),
+          signerAddress: await ethSigner.getAddress()
+        })
+      } catch (error) {
+        console.error('❌ 初始化 provider 和 signer 失败:', error)
+        setProvider(undefined)
+        setSigner(undefined)
+      }
+    } else {
+      console.log('🔍 清理 provider 和 signer (未连接或无ethereum)')
+      setProvider(undefined)
+      setSigner(undefined)
+    }
+  }
 
   // 获取一灯币余额
   const fetchYdBalance = async (): Promise<void> => {
-    if (!address || !isConnected) {
+    if (!address || !isConnected || !provider) {
       setYdBalance(null)
       return
     }
 
     try {
       setError(undefined)
-      if (typeof window !== 'undefined' && window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum)
-        const tokenAddress = getYiDengTokenAddress(chainId)
+      const tokenAddress = getYiDengTokenAddress(chainId)
+      
+      // 检查合约是否存在
+      const code = await provider.getCode(tokenAddress)
+      if (code === '0x') {
+        console.warn(`一灯币合约未部署在地址: ${tokenAddress}`)
+        setYdBalance('0')
+        return
+      }
+      
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider)
+      
+      try {
+        const [balanceWei, decimals] = await Promise.all([
+          tokenContract.balanceOf(address),
+          tokenContract.decimals()
+        ])
         
-        // 检查合约是否存在
-        const code = await provider.getCode(tokenAddress)
-        if (code === '0x') {
-          console.warn(`一灯币合约未部署在地址: ${tokenAddress}`)
-          setYdBalance('0')
-          return
-        }
-        
-        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider)
-        
-        try {
-          const [balanceWei, decimals] = await Promise.all([
-            tokenContract.balanceOf(address),
-            tokenContract.decimals()
-          ])
-          
-          const balanceFormatted = ethers.formatUnits(balanceWei, decimals)
-          setYdBalance(balanceFormatted)
-          console.log(`一灯币余额: ${balanceFormatted} YD`)
-        } catch (contractError: any) {
-          console.error('调用一灯币合约失败:', contractError)
-          setYdBalance('0')
-          setError({ code: contractError.code || -1, message: contractError.message || '合约调用失败' })
-        }
+        const balanceFormatted = ethers.formatUnits(balanceWei, decimals)
+        setYdBalance(balanceFormatted)
+        console.log(`一灯币余额: ${balanceFormatted} YD`)
+      } catch (contractError: any) {
+        console.error('调用一灯币合约失败:', contractError)
+        setYdBalance('0')
+        setError({ code: contractError.code || -1, message: contractError.message || '合约调用失败' })
       }
     } catch (error: any) {
       console.error('获取一灯币余额失败:', error)
@@ -166,8 +196,14 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     }
   }, [balanceData])
 
+  // 监听连接状态变化，初始化 provider 和 signer
   useEffect(() => {
-    if (isConnected && address) {
+    initializeProviderAndSigner()
+  }, [isConnected, chainId])
+
+  // 监听 provider 变化，更新一灯币余额和用户资料
+  useEffect(() => {
+    if (isConnected && address && provider) {
       // 获取一灯币余额
       fetchYdBalance()
       
@@ -181,7 +217,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
       setYdBalance(null)
       setError(undefined)
     }
-  }, [isConnected, address, chainId])
+  }, [isConnected, address, chainId, provider])
 
   const value: Web3ContextType = {
     isConnected,
@@ -191,6 +227,10 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     isLoading: balanceLoading || isLoading,
     error,
     refetchBalance,
+    
+    // 新增的 provider 和 signer
+    provider,
+    signer,
     
     // 额外的上下文特定属性
     ydBalance,
