@@ -36,6 +36,8 @@ export const useCoursePurchase = (): UseCoursePurchaseResult => {
       const priceNum = parseFloat(price);
       
       const hasEnoughAllowance = allowanceNum >= priceNum;
+console.log(hasEnoughAllowance,allowanceNum,priceNum,"-------")
+
       setNeedsApproval(!hasEnoughAllowance);
       
       return hasEnoughAllowance;

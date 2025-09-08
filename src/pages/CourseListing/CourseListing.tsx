@@ -21,7 +21,6 @@ function CourseListing() {
     needsApproval,
     approveCourse
   } = useCoursePurchase()
-
   // 监听购买状态变化，清理本地状态
   useEffect(() => {
     // 如果不再是购买中状态，清理本地购买状态
@@ -42,8 +41,6 @@ function CourseListing() {
         // 获取本地存储的所有课程
         const cachedCourses = getAllCourses()
         setCourses(cachedCourses)
-        
-        console.log(`加载了 ${cachedCourses.length} 门课程`)
       } catch (error) {
         console.error('加载课程数据失败:', error)
       } finally {
@@ -103,7 +100,6 @@ function CourseListing() {
     if (!ydBalance) return false
     const ydBalanceNum = parseFloat(ydBalance)
     const priceNum = parseFloat(price)
-    console.log(ydBalanceNum, priceNum,"----------------")
     return ydBalanceNum >= priceNum
   }
 
@@ -426,9 +422,6 @@ function CourseListing() {
                   {/* 操作按钮区域 */}
                   <div className="space-y-2">
                     {/* 如果需要授权且余额足够，显示授权按钮和购买按钮在同一行 */}
-                    {
-                      console.log("test",!isCreator , !isPurchased , canAfford(course.price) , needsApproval)
-                    }
                     {!isCreator && !isPurchased && canAfford(course.price) && needsApproval ? (
                       <div className="flex space-x-2">
                         <button
