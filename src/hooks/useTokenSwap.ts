@@ -693,10 +693,10 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
     mintAndDepositTestTokens,
     depositETHToContract,
 
-    // 加载状态
-    isLoading: isLoading || isPending || isConfirming,
+    // 加载状态和错误处理
+    isLoading: isLoading || isPending || isConfirming || isLoadingUserBalance,
     isConfirmed,
     transactionHash: hash,
-    error,
+    error: error || (userBalanceError ? { code: -1, message: userBalanceError.message || '获取余额失败' } : undefined),
   };
 }

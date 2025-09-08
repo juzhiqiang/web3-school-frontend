@@ -166,8 +166,6 @@ export const WEB3_SCHOOL_CONTRACT_ABI = [
   }
 ] as const;
 
-// 合约地址
-export const WEB3_SCHOOL_CONTRACT_ADDRESS = '0xFB44007b2660D8750b5F6083d9e983ad5f34eF3c' as const;
 
 // 一灯币奖励配置
 export const YIDENG_REWARDS = {

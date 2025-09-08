@@ -80,10 +80,14 @@ export const AAVE_CONFIG = {
     chainId: 1337,
     name: 'Ganache Local',
     // 注意：本地网络需要部署AAVE合约或者模拟合约
-    poolAddress: '0x0000000000000000000000000000000000000000',
-    poolDataProvider: '0x0000000000000000000000000000000000000000',
-    usdtAddress: '0x0000000000000000000000000000000000000000',
-    aUsdtAddress: '0x0000000000000000000000000000000000000000',
+     // AAVE V3 Sepolia Pool 合约地址
+    poolAddress: '0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951',
+    // AAVE V3 Sepolia Pool Data Provider
+    poolDataProvider: '0x3e9708d80f7B3e43118013075F7e95CE3AB31F31',
+    // Sepolia USDT 测试代币地址 (Faucet USDT)
+    usdtAddress: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',
+    // Sepolia aUSDT 代币地址
+    aUsdtAddress: '0x6d80113e533a2C0fe82EaBD35f1875DcEA89Ea97',
     explorerUrl: 'http://localhost:7545',
   },
 

@@ -314,7 +314,6 @@ const CreateCourse: React.FC = () => {
         id: courseId,
         instructorAddress: address,
         createdAt: new Date(),
-        thumbnailHash: thumbnailHash || `https://via.placeholder.com/800x450?text=${encodeURIComponent(formData.title)}&bg=4F46E5&color=white`,
       };
       
       // 使用工具类保存到localStorage
