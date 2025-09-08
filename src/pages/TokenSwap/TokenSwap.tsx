@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff, Wallet, DollarSign } from 'lucide-react'
+import { ArrowUpDown, Coins, TrendingUp, AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff, Wallet } from 'lucide-react'
 import { useWeb3 } from '../../contexts/Web3Context'
 import { useTokenSwap } from '../../hooks/useTokenSwap'
 import { useUniswapETHUSDT } from '../../hooks/useUniswapETHUSDT'
