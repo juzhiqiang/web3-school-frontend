@@ -73,9 +73,27 @@ export const useAave = () => {
     );
   }, [provider, aaveConfig]);
 
+  // 增强的USDT合约实例创建函数
   const getUsdtContract = useCallback(() => {
-    if (!provider || !aaveConfig) return null;
-    return new ethers.Contract(aaveConfig.usdtAddress, ERC20_ABI, provider);
+    if (!provider || !aaveConfig) {
+      console.log('🔍 无法创建USDT合约：缺少provider或配置', {
+        hasProvider: !!provider,
+        hasConfig: !!aaveConfig
+      });
+      return null;
+    }
+
+    try {
+      console.log('🔧 创建USDT合约实例:', {
+        address: aaveConfig.usdtAddress,
+        chainId: aaveConfig.chainId
+      });
+
+      return new ethers.Contract(aaveConfig.usdtAddress, ERC20_ABI, provider);
+    } catch (error) {
+      console.error('❌ 创建USDT合约失败:', error);
+      return null;
+    }
   }, [provider, aaveConfig]);
 
   const getUsdtContractWithSigner = useCallback(() => {
@@ -88,23 +106,159 @@ export const useAave = () => {
     return new ethers.Contract(aaveConfig.aUsdtAddress, ERC20_ABI, provider);
   }, [provider, aaveConfig]);
 
-  // 获取USDT余额
+  // 修复的USDT余额获取函数
   const fetchUsdtBalance = useCallback(async () => {
-    if (!address || !aaveConfig) return;
+    if (!address || !aaveConfig) {
+      console.log('🔍 无法获取USDT余额：缺少地址或配置', { address, aaveConfig: !!aaveConfig });
+      return;
+    }
 
     try {
-      const usdtContract = getUsdtContract();
-      if (!usdtContract) return;
+      console.log('🔍 开始获取USDT余额...', {
+        address,
+        usdtAddress: aaveConfig.usdtAddress,
+        chainId: aaveConfig.chainId
+      });
 
-      const balance = await usdtContract.balanceOf(address);
-      const decimals = await usdtContract.decimals();
+      const usdtContract = getUsdtContract();
+      if (!usdtContract) {
+        console.error('❌ 无法创建USDT合约实例');
+        setUsdtBalance('0');
+        return;
+      }
+
+      // 添加超时机制
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('获取余额超时')), 10000)
+      );
+
+      // 首先验证合约地址是否有效
+      try {
+        const code = await provider?.getCode(aaveConfig.usdtAddress);
+        if (!code || code === '0x') {
+          console.error('❌ USDT合约地址无效或不存在', {
+            address: aaveConfig.usdtAddress,
+            chainId: aaveConfig.chainId
+          });
+          setUsdtBalance('0');
+          return;
+        }
+      } catch (codeError) {
+        console.error('❌ 检查合约代码失败:', codeError);
+      }
+
+      // 获取余额和精度
+      const [balance, decimals] = await Promise.race([
+        Promise.all([
+          usdtContract.balanceOf(address),
+          usdtContract.decimals()
+        ]),
+        timeoutPromise
+      ]) as [any, any];
+
+      console.log('📊 原始余额数据:', {
+        balance: balance.toString(),
+        decimals: decimals.toString(),
+        address
+      });
+
       const formattedBalance = ethers.utils.formatUnits(balance, decimals);
+      
+      console.log('✅ USDT余额获取成功:', {
+        formatted: formattedBalance,
+        raw: balance.toString()
+      });
+
       setUsdtBalance(formattedBalance);
-    } catch (error) {
-      console.error('获取USDT余额失败:', error);
+
+    } catch (error: any) {
+      console.error('❌ 获取USDT余额失败:', {
+        error: error.message || error,
+        address,
+        usdtAddress: aaveConfig.usdtAddress,
+        chainId: aaveConfig.chainId,
+        stack: error.stack
+      });
+
+      // 根据错误类型提供更详细的信息
+      if (error.message?.includes('timeout')) {
+        toast.error('获取余额超时，请检查网络连接');
+      } else if (error.message?.includes('network')) {
+        toast.error('网络错误，请切换RPC节点');
+      } else if (error.message?.includes('call revert')) {
+        toast.error('合约调用失败，请检查网络配置');
+      }
+
       setUsdtBalance('0');
     }
-  }, [address, aaveConfig, getUsdtContract]);
+  }, [address, aaveConfig, getUsdtContract, provider]);
+
+  // 重试机制的USDT余额获取函数
+  const fetchUsdtBalanceWithRetry = useCallback(async (retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        await fetchUsdtBalance();
+        break; // 成功则退出循环
+      } catch (error) {
+        console.log(`🔄 第${i + 1}次尝试失败，剩余重试次数：${retries - i - 1}`);
+        if (i === retries - 1) {
+          console.error('❌ 所有重试都失败了');
+          toast.error('获取USDT余额失败，请检查网络连接或切换RPC节点');
+        } else {
+          // 等待一段时间后重试
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        }
+      }
+    }
+  }, [fetchUsdtBalance]);
+
+  // 调试函数
+  const debugUsdtBalance = useCallback(async () => {
+    if (!address || !aaveConfig || !provider) {
+      console.log('🔍 调试信息 - 缺少必要条件:', {
+        address: !!address,
+        aaveConfig: !!aaveConfig,
+        provider: !!provider
+      });
+      return;
+    }
+
+    console.log('🔍 开始调试USDT余额获取...');
+    console.log('📊 当前配置:', {
+      chainId: aaveConfig.chainId,
+      networkName: aaveConfig.name,
+      usdtAddress: aaveConfig.usdtAddress,
+      userAddress: address
+    });
+
+    try {
+      // 检查网络连接
+      const network = await provider.getNetwork();
+      console.log('🌐 网络信息:', network);
+
+      // 检查合约代码
+      const code = await provider.getCode(aaveConfig.usdtAddress);
+      console.log('📜 合约代码长度:', code.length);
+
+      // 尝试直接调用合约
+      const contract = new ethers.Contract(aaveConfig.usdtAddress, ERC20_ABI, provider);
+      const [balance, decimals, symbol] = await Promise.all([
+        contract.balanceOf(address),
+        contract.decimals(),
+        contract.symbol?.() || 'Unknown'
+      ]);
+
+      console.log('💰 余额调试结果:', {
+        balance: balance.toString(),
+        decimals: decimals.toString(),
+        symbol,
+        formatted: ethers.utils.formatUnits(balance, decimals)
+      });
+
+    } catch (error) {
+      console.error('❌ 调试过程中出错:', error);
+    }
+  }, [address, aaveConfig, provider]);
 
   // 获取aUSDT余额
   const fetchAUsdtBalance = useCallback(async () => {
@@ -225,7 +379,7 @@ export const useAave = () => {
     if (!isNetworkSupported || !address) return;
 
     await Promise.all([
-      fetchUsdtBalance(),
+      fetchUsdtBalanceWithRetry(),
       fetchAUsdtBalance(),
       fetchAllowance(),
       fetchUserReserveData(),
@@ -234,7 +388,7 @@ export const useAave = () => {
   }, [
     isNetworkSupported,
     address,
-    fetchUsdtBalance,
+    fetchUsdtBalanceWithRetry,
     fetchAUsdtBalance,
     fetchAllowance,
     fetchUserReserveData,
@@ -470,12 +624,36 @@ export const useAave = () => {
     [depositData.apy]
   );
 
-  // 初始化和监听变化
+  // 增强的初始化逻辑
   useEffect(() => {
     if (isNetworkSupported && address && provider) {
+      console.log('🚀 初始化AAVE数据获取...', {
+        isNetworkSupported,
+        address,
+        chainId,
+        aaveConfig: !!aaveConfig
+      });
+
+      // 检查当前网络配置
+      if (!aaveConfig) {
+        console.error('❌ 当前网络不支持或配置缺失');
+        toast.error('当前网络不支持AAVE协议');
+        return;
+      }
+
+      // 验证USDT地址配置
+      if (!aaveConfig.usdtAddress || aaveConfig.usdtAddress === '0x0000000000000000000000000000000000000000') {
+        console.error('❌ USDT地址配置无效', {
+          usdtAddress: aaveConfig.usdtAddress,
+          chainId: aaveConfig.chainId
+        });
+        toast.error('USDT合约地址配置错误');
+        return;
+      }
+
       refetchAll();
     }
-  }, [isNetworkSupported, address, provider, refetchAll]);
+  }, [isNetworkSupported, address, provider, chainId, aaveConfig, refetchAll]);
 
   // 监听交易确认后重置状态
   useEffect(() => {
@@ -523,5 +701,8 @@ export const useAave = () => {
     // 格式化函数
     formatNumber,
     formatApy,
+    
+    // 调试函数
+    debugUsdtBalance,
   };
 };
