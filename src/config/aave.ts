@@ -4,6 +4,9 @@ export const AAVE_CONFIG = {
   SUPPORTED_NETWORKS: {
     1: 'mainnet',
     11155111: 'sepolia',
+    137: 'polygon',
+    42161: 'arbitrum',
+    5: 'goerli',
     1337: 'ganache',
   },
 
@@ -23,7 +26,24 @@ export const AAVE_CONFIG = {
     explorerUrl: 'https://etherscan.io',
   },
 
+  // Sepolia 测试网配置 (11155111)
   SEPOLIA: {
+    chainId: 11155111,
+    name: 'Sepolia Testnet',
+    // AAVE V3 Sepolia Pool 合约地址
+    poolAddress: '0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951',
+    // AAVE V3 Sepolia Pool Data Provider
+    poolDataProvider: '0x3e9708d80f7B3e43118013075F7e95CE3AB31F31',
+    // Sepolia USDT 测试代币地址 (Faucet USDT)
+    usdtAddress: '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',
+    // Sepolia aUSDT 代币地址
+    aUsdtAddress: '0x6d80113e533a2C0fe82EaBD35f1875DcEA89Ea97',
+    // 区块浏览器
+    explorerUrl: 'https://sepolia.etherscan.io',
+  },
+
+  // Polygon 配置
+  POLYGON: {
     chainId: 137,
     name: 'Polygon',
     poolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
@@ -44,15 +64,27 @@ export const AAVE_CONFIG = {
     explorerUrl: 'https://arbiscan.io',
   },
 
-  // 测试网络配置
-  GANACHE: {
+  // Goerli 测试网络配置 (已废弃，但保留兼容性)
+  GOERLI: {
     chainId: 5,
     name: 'Goerli Testnet',
     poolAddress: '0x368EedF3f56ad10b9bC57eed4Dac65B26Bb667f6',
     poolDataProvider: '0x9441B65EE553F70df9C77d45d3283B6BC24F222d',
-    usdtAddress: '0x65aFADD39029741B3b8f0756952C74678c9cEC93', // Goerli USDT
+    usdtAddress: '0x65aFADD39029741B3b8f0756952C74678c9cEC93',
     aUsdtAddress: '0x73258E6FB96ecAc8a979826d503B45803a382d68',
     explorerUrl: 'https://goerli.etherscan.io',
+  },
+
+  // 本地开发网络配置
+  GANACHE: {
+    chainId: 1337,
+    name: 'Ganache Local',
+    // 注意：本地网络需要部署AAVE合约或者模拟合约
+    poolAddress: '0x0000000000000000000000000000000000000000',
+    poolDataProvider: '0x0000000000000000000000000000000000000000',
+    usdtAddress: '0x0000000000000000000000000000000000000000',
+    aUsdtAddress: '0x0000000000000000000000000000000000000000',
+    explorerUrl: 'http://localhost:7545',
   },
 
   // 错误消息
@@ -78,6 +110,12 @@ export const AAVE_CONFIG = {
   INTEREST_RATE_MODE: {
     STABLE: 1,
     VARIABLE: 2,
+  },
+
+  // Sepolia 测试网水龙头信息
+  SEPOLIA_FAUCETS: {
+    USDT: 'https://staging.aave.com/faucet/',
+    ETH: 'https://sepoliafaucet.com/',
   },
 };
 
@@ -226,12 +264,16 @@ export const getAaveConfig = (chainId: number) => {
   switch (chainId) {
     case 1:
       return AAVE_CONFIG.MAINNET;
+    case 11155111:
+      return AAVE_CONFIG.SEPOLIA;
     case 5:
       return AAVE_CONFIG.GOERLI;
     case 137:
       return AAVE_CONFIG.POLYGON;
     case 42161:
       return AAVE_CONFIG.ARBITRUM;
+    case 1337:
+      return AAVE_CONFIG.GANACHE;
     default:
       return null;
   }
@@ -254,4 +296,17 @@ export const formatApy = (rayRate: string): string => {
   const rate = parseFloat(rayRate) / 1e27;
   const apy = rate * 100;
   return apy.toFixed(2);
+};
+
+// 获取测试网水龙头URL
+export const getFaucetUrl = (chainId: number, token: 'USDT' | 'ETH'): string | null => {
+  if (chainId === 11155111) {
+    return AAVE_CONFIG.SEPOLIA_FAUCETS[token];
+  }
+  return null;
+};
+
+// 检查是否为测试网络
+export const isTestNetwork = (chainId: number): boolean => {
+  return chainId === 11155111 || chainId === 5 || chainId === 1337;
 };
