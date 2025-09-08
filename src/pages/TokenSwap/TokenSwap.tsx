@@ -5,8 +5,8 @@ import { useTokenSwap } from '../../hooks/useTokenSwap'
 import { useUniswapETHUSDT } from '../../hooks/useUniswapETHUSDT'
 import { TOKEN_SWAP_CONFIG, ERROR_MESSAGES } from '../../config/tokenSwap'
 import toast from 'react-hot-toast'
-import TokenSwapTip from './components/tip'
 import YdToEthExchangePool from './components/YdToEthExchangePool'
+import TokenSwapTip from './components/TipInfo'
 
 function TokenSwap() {
   const { isConnected, address, balance, refetchBalance } = useWeb3()
