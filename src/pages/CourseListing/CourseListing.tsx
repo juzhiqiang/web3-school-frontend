@@ -310,7 +310,7 @@ function CourseListing() {
             <div key={course.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
               <div className="relative">
                 <img 
-                  src={course.thumbnailHash || `https://via.placeholder.com/400x200?text=${encodeURIComponent(course.title)}`} 
+                  src={course.thumbnailHash } 
                   alt={course.title}
                   className="w-full h-48 object-cover"
                 />
@@ -425,6 +425,9 @@ function CourseListing() {
                   {/* 操作按钮区域 */}
                   <div className="space-y-2">
                     {/* 如果需要授权且余额足够，显示授权按钮和购买按钮在同一行 */}
+                    {
+                      console.log("test",!isCreator , !isPurchased , canAfford(course.price) , needsApproval)
+                    }
                     {!isCreator && !isPurchased && canAfford(course.price) && needsApproval ? (
                       <div className="flex space-x-2">
                         <button

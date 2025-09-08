@@ -301,6 +301,7 @@ const CreateCourse: React.FC = () => {
         const reader = new FileReader();
         await new Promise((resolve) => {
           reader.onload = () => {
+            console.log('reader',reader)
             thumbnailHash = reader.result as string;
             resolve(null);
           };
@@ -314,6 +315,7 @@ const CreateCourse: React.FC = () => {
         id: courseId,
         instructorAddress: address,
         createdAt: new Date(),
+         thumbnailHash: thumbnailHash
       };
       
       // 使用工具类保存到localStorage
