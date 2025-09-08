@@ -1,7 +1,6 @@
                           {swapMode === "buy"
                             ? feeRates.buyFee
-                            : feeRates.sellFee}
-                          %
+                            : feeRates.sellFee}%
                         </span>
                       </div>
                       <div className="flex justify-between">
