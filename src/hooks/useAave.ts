@@ -106,7 +106,7 @@ export const useAave = () => {
     return new ethers.Contract(aaveConfig.aUsdtAddress, ERC20_ABI, provider);
   }, [provider, aaveConfig]);
 
-  // 修复的USDT余额获取函数
+  // 修复的USDT余额获取函数 - 使用 ethers v6 API
   const fetchUsdtBalance = useCallback(async () => {
     if (!address || !aaveConfig) {
       console.log('🔍 无法获取USDT余额：缺少地址或配置', { address, aaveConfig: !!aaveConfig });
@@ -162,7 +162,8 @@ export const useAave = () => {
         address
       });
 
-      const formattedBalance = ethers.utils.formatUnits(balance, decimals);
+      // 修复：使用 ethers v6 的 formatUnits
+      const formattedBalance = ethers.formatUnits(balance, decimals);
       
       console.log('✅ USDT余额获取成功:', {
         formatted: formattedBalance,
@@ -212,7 +213,7 @@ export const useAave = () => {
     }
   }, [fetchUsdtBalance]);
 
-  // 调试函数
+  // 调试函数 - 修复 ethers v6 兼容性
   const debugUsdtBalance = useCallback(async () => {
     if (!address || !aaveConfig || !provider) {
       console.log('🔍 调试信息 - 缺少必要条件:', {
@@ -252,7 +253,7 @@ export const useAave = () => {
         balance: balance.toString(),
         decimals: decimals.toString(),
         symbol,
-        formatted: ethers.utils.formatUnits(balance, decimals)
+        formatted: ethers.formatUnits(balance, decimals) // 修复：使用 ethers v6 API
       });
 
     } catch (error) {
@@ -260,7 +261,7 @@ export const useAave = () => {
     }
   }, [address, aaveConfig, provider]);
 
-  // 获取aUSDT余额
+  // 获取aUSDT余额 - 修复 ethers v6 兼容性
   const fetchAUsdtBalance = useCallback(async () => {
     if (!address || !aaveConfig) return;
 
@@ -270,7 +271,7 @@ export const useAave = () => {
 
       const balance = await aUsdtContract.balanceOf(address);
       const decimals = await aUsdtContract.decimals();
-      const formattedBalance = ethers.utils.formatUnits(balance, decimals);
+      const formattedBalance = ethers.formatUnits(balance, decimals); // 修复：使用 ethers v6 API
       setAUsdtBalance(formattedBalance);
     } catch (error) {
       console.error('获取aUSDT余额失败:', error);
@@ -278,7 +279,7 @@ export const useAave = () => {
     }
   }, [address, aaveConfig, getAUsdtContract]);
 
-  // 获取USDT授权额度
+  // 获取USDT授权额度 - 修复 ethers v6 兼容性
   const fetchAllowance = useCallback(async () => {
     if (!address || !aaveConfig) return;
 
@@ -291,7 +292,7 @@ export const useAave = () => {
         aaveConfig.poolAddress
       );
       const decimals = await usdtContract.decimals();
-      const formattedAllowance = ethers.utils.formatUnits(allowanceAmount, decimals);
+      const formattedAllowance = ethers.formatUnits(allowanceAmount, decimals); // 修复：使用 ethers v6 API
       setAllowance(formattedAllowance);
     } catch (error) {
       console.error('获取授权额度失败:', error);
@@ -299,7 +300,7 @@ export const useAave = () => {
     }
   }, [address, aaveConfig, getUsdtContract]);
 
-  // 获取用户储备数据
+  // 获取用户储备数据 - 修复 ethers v6 兼容性
   const fetchUserReserveData = useCallback(async () => {
     if (!address || !aaveConfig) return;
 
@@ -315,12 +316,12 @@ export const useAave = () => {
       const decimals = 6; // USDT的小数位数
 
       const depositInfo: AaveDepositData = {
-        currentATokenBalance: ethers.utils.formatUnits(
+        currentATokenBalance: ethers.formatUnits( // 修复：使用 ethers v6 API
           reserveData.currentATokenBalance,
           decimals
         ),
         liquidityRate: reserveData.liquidityRate.toString(),
-        totalSupplied: ethers.utils.formatUnits(
+        totalSupplied: ethers.formatUnits( // 修复：使用 ethers v6 API
           reserveData.currentATokenBalance,
           decimals
         ),
@@ -339,7 +340,7 @@ export const useAave = () => {
     }
   }, [address, aaveConfig, getDataProviderContract]);
 
-  // 获取用户账户数据
+  // 获取用户账户数据 - 修复 ethers v6 兼容性
   const fetchUserAccountData = useCallback(async () => {
     if (!address || !aaveConfig) return;
 
@@ -350,14 +351,14 @@ export const useAave = () => {
       const accountData = await poolContract.getUserAccountData(address);
 
       const userInfo: AaveUserData = {
-        totalCollateral: ethers.utils.formatUnits(accountData.totalCollateralBase, 8), // 基础单位
-        totalDebt: ethers.utils.formatUnits(accountData.totalDebtBase, 8),
-        availableBorrows: ethers.utils.formatUnits(accountData.availableBorrowsBase, 8),
+        totalCollateral: ethers.formatUnits(accountData.totalCollateralBase, 8), // 修复：使用 ethers v6 API
+        totalDebt: ethers.formatUnits(accountData.totalDebtBase, 8), // 修复：使用 ethers v6 API
+        availableBorrows: ethers.formatUnits(accountData.availableBorrowsBase, 8), // 修复：使用 ethers v6 API
         currentLiquidationThreshold: (
-          accountData.currentLiquidationThreshold.toNumber() / 100
+          Number(accountData.currentLiquidationThreshold) / 100 // 修复：使用 Number() 替代 .toNumber()
         ).toString(),
-        ltv: (accountData.ltv.toNumber() / 100).toString(),
-        healthFactor: ethers.utils.formatUnits(accountData.healthFactor, 18),
+        ltv: (Number(accountData.ltv) / 100).toString(), // 修复：使用 Number() 替代 .toNumber()
+        healthFactor: ethers.formatUnits(accountData.healthFactor, 18), // 修复：使用 ethers v6 API
       };
 
       setUserData(userInfo);
@@ -422,7 +423,7 @@ export const useAave = () => {
     [aUsdtBalance]
   );
 
-  // 授权USDT给AAVE池
+  // 授权USDT给AAVE池 - 修复 ethers v6 兼容性
   const approveUsdt = async (amount: string) => {
     if (!aaveConfig || !signer) {
       toast.error(AAVE_CONFIG.ERROR_MESSAGES.NETWORK_NOT_SUPPORTED);
@@ -443,7 +444,7 @@ export const useAave = () => {
       if (!usdtContract) throw new Error('无法获取USDT合约');
 
       const decimals = await usdtContract.decimals();
-      const amountInWei = ethers.utils.parseUnits(amount, decimals);
+      const amountInWei = ethers.parseUnits(amount, decimals); // 修复：使用 ethers v6 API
 
       console.log('🔐 开始USDT授权:', {
         amount,
@@ -473,7 +474,7 @@ export const useAave = () => {
     }
   };
 
-  // 质押USDT到AAVE
+  // 质押USDT到AAVE - 修复 ethers v6 兼容性
   const supplyUsdt = async (amount: string) => {
     if (!aaveConfig || !signer || !address) {
       toast.error(AAVE_CONFIG.ERROR_MESSAGES.NETWORK_NOT_SUPPORTED);
@@ -502,7 +503,7 @@ export const useAave = () => {
       if (!usdtContract) throw new Error('无法获取USDT合约');
 
       const decimals = await usdtContract.decimals();
-      const amountInWei = ethers.utils.parseUnits(amount, decimals);
+      const amountInWei = ethers.parseUnits(amount, decimals); // 修复：使用 ethers v6 API
 
       console.log('💰 开始质押USDT:', {
         amount,
@@ -538,7 +539,7 @@ export const useAave = () => {
     }
   };
 
-  // 从AAVE提取USDT
+  // 从AAVE提取USDT - 修复 ethers v6 兼容性
   const withdrawUsdt = async (amount: string) => {
     if (!aaveConfig || !signer || !address) {
       toast.error(AAVE_CONFIG.ERROR_MESSAGES.NETWORK_NOT_SUPPORTED);
@@ -574,8 +575,8 @@ export const useAave = () => {
 
       // 如果是最大提取，使用特殊值 (uint256最大值)
       const amountInWei = isMaxWithdraw
-        ? ethers.constants.MaxUint256
-        : ethers.utils.parseUnits(withdrawAmount, decimals);
+        ? ethers.MaxUint256 // 修复：使用 ethers v6 API
+        : ethers.parseUnits(withdrawAmount, decimals); // 修复：使用 ethers v6 API
 
       console.log('💸 开始提取USDT:', {
         amount: withdrawAmount,
