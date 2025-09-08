@@ -11,6 +11,7 @@ import {
   CheckCircle,
   RefreshCw,
   Info,
+  Bug,
 } from 'lucide-react';
 import { useAave } from '../../../hooks/useAave';
 import { useWeb3 } from '../../../contexts/Web3Context';
@@ -41,12 +42,14 @@ const AaveStaking: React.FC<AaveStakingProps> = ({ onRefresh }) => {
     refetchAll,
     calculateExpectedReturn,
     formatNumber,
+    debugUsdtBalance, // 添加调试函数
   } = useAave();
 
   const [activeTab, setActiveTab] = useState<'stake' | 'withdraw'>('stake');
   const [stakeAmount, setStakeAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showDebug, setShowDebug] = useState(false); // 新增调试面板状态
 
   // 重置表单
   const resetForm = () => {
@@ -70,6 +73,16 @@ const AaveStaking: React.FC<AaveStakingProps> = ({ onRefresh }) => {
       setStakeAmount(parseFloat(usdtBalance).toFixed(6));
     } else {
       setWithdrawAmount(parseFloat(aUsdtBalance).toFixed(6));
+    }
+  };
+
+  // 处理调试按钮点击
+  const handleDebugClick = async () => {
+    console.log('🐛 开始调试USDT余额...');
+    if (debugUsdtBalance) {
+      await debugUsdtBalance();
+    } else {
+      console.error('❌ debugUsdtBalance 函数不可用');
     }
   };
 
@@ -174,7 +187,7 @@ const AaveStaking: React.FC<AaveStakingProps> = ({ onRefresh }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-      {/* 标题和刷新按钮 */}
+      {/* 标题和控制按钮 */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <Shield className="h-6 w-6 text-green-600" />
@@ -183,16 +196,82 @@ const AaveStaking: React.FC<AaveStakingProps> = ({ onRefresh }) => {
             {aaveConfig?.name}
           </div>
         </div>
+        <div className="flex items-center space-x-2">
+          {/* 调试按钮 */}
+          <button
+            onClick={handleDebugClick}
+            className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+            title="调试USDT余额获取"
+          >
+            <Bug className="h-5 w-5" />
+          </button>
+          {/* 刷新按钮 */}
+          <button
+            onClick={() => {
+              refetchAll();
+              if (onRefresh) onRefresh();
+            }}
+            className="p-2 text-gray-500 hover:text-green-600 transition-colors"
+            title="刷新AAVE数据"
+          >
+            <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* 调试信息面板 */}
+      <div className="mb-6">
         <button
-          onClick={() => {
-            refetchAll();
-            if (onRefresh) onRefresh();
-          }}
-          className="p-2 text-gray-500 hover:text-green-600 transition-colors"
-          title="刷新AAVE数据"
+          onClick={() => setShowDebug(!showDebug)}
+          className="text-sm text-gray-600 hover:text-gray-800 mb-2 flex items-center space-x-1"
         >
-          <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+          <Bug className="h-4 w-4" />
+          <span>调试信息</span>
+          <span>{showDebug ? '▲' : '▼'}</span>
         </button>
+
+        {showDebug && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+            <div className="text-sm">
+              <h4 className="font-semibold text-red-800 mb-2">USDT余额调试</h4>
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="text-gray-600">当前USDT余额:</span>
+                  <p className="font-mono bg-white px-2 py-1 rounded">{usdtBalance || '获取中...'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-600">网络支持状态:</span>
+                  <p className={`font-mono px-2 py-1 rounded ${isNetworkSupported ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {isNetworkSupported ? '✅ 支持' : '❌ 不支持'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-gray-600">USDT合约地址:</span>
+                  <p className="font-mono bg-white px-2 py-1 rounded text-xs break-all">
+                    {aaveConfig?.usdtAddress || '未获取'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-gray-600">链ID:</span>
+                  <p className="font-mono bg-white px-2 py-1 rounded">
+                    {aaveConfig?.chainId || '未获取'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3">
+                <button
+                  onClick={handleDebugClick}
+                  className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                >
+                  运行余额调试
+                </button>
+                <p className="text-xs text-red-600 mt-1">
+                  点击按钮查看控制台详细调试信息
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 余额信息 */}
@@ -205,6 +284,9 @@ const AaveStaking: React.FC<AaveStakingProps> = ({ onRefresh }) => {
           <p className="text-lg font-bold text-blue-600">
             {formatNumber(usdtBalance)} USDT
           </p>
+          {usdtBalance === '0' && (
+            <p className="text-xs text-red-500 mt-1">⚠️ 余额为0，请检查</p>
+          )}
         </div>
 
         <div className="bg-green-50 rounded-lg p-4">
