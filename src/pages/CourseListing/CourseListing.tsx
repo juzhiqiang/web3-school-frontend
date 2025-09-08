@@ -103,6 +103,7 @@ function CourseListing() {
     if (!ydBalance) return false
     const ydBalanceNum = parseFloat(ydBalance)
     const priceNum = parseFloat(price)
+    console.log(ydBalanceNum, priceNum,"----------------")
     return ydBalanceNum >= priceNum
   }
 
