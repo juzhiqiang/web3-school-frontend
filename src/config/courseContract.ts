@@ -3,10 +3,12 @@ import { CONTRACT_ADDRESSES } from "../utils/constants";
 // 课程合约配置
 export const COURSE_CONTRACT_CONFIG = {
   // 合约地址 - 你提供的合约地址
-  CONTRACT_ADDRESS:
-    import.meta.env.MODE === "development"
-      ? CONTRACT_ADDRESSES.COURSE_CONTRACT.LOCAL
-      : CONTRACT_ADDRESSES.COURSE_CONTRACT.SEPOLIA,
+  CONTRACT_ADDRESS:CONTRACT_ADDRESSES.COURSE_CONTRACT.SEPOLIA,
+    // import.meta.env.MODE === "development"
+    //   ? CONTRACT_ADDRESSES.COURSE_CONTRACT.LOCAL
+    //   : CONTRACT_ADDRESSES.COURSE_CONTRACT.SEPOLIA,
+
+
  
   // 课程创建奖励
   CREATION_REWARD: "1", // 1 一灯币奖励

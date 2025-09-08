@@ -52,8 +52,9 @@ export const useOnChainRewards = () => {
 
       const contractAddress = COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`;
       const allRewards: OnChainRewardRecord[] = [];
-
       // 获取创建课程奖励事件 (CoursePublishReward)
+      const latestBlock = await publicClient.getBlockNumber()
+      const fromBlock = latestBlock - 8000n
       try {
         const createCourseRewardLogs = await publicClient.getLogs({
           address: contractAddress,
@@ -69,9 +70,10 @@ export const useOnChainRewards = () => {
           args: {
             instructor: address
           },
-          fromBlock: 0n,
+          fromBlock: fromBlock,
           toBlock: 'latest'
         });
+
         for (const log of createCourseRewardLogs) {
           const { instructor, uuid, rewardAmount } = log.args;
           

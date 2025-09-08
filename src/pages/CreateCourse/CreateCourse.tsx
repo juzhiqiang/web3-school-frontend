@@ -340,8 +340,9 @@ const CreateCourse: React.FC = () => {
       console.log(`🔍 开始查询课程 ${courseId} 的奖励状态...`);
       
       const contractAddress = COURSE_CONTRACT_CONFIG.CONTRACT_ADDRESS as `0x${string}`;
-      
       // 获取创建课程奖励事件 (CoursePublishReward)
+      const latestBlock = await publicClient.getBlockNumber()
+      const fromBlock = latestBlock - 8000n
       const createCourseRewardLogs = await publicClient.getLogs({
         address: contractAddress,
         event: {
@@ -357,7 +358,7 @@ const CreateCourse: React.FC = () => {
           instructor: creatorAddress as `0x${string}`,
           uuid: courseId
         },
-        fromBlock: 0n,
+        fromBlock: fromBlock,
         toBlock: 'latest'
       });
 

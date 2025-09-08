@@ -166,7 +166,7 @@ function CourseListing() {
     if (!canAfford(course.price)) return '余额不足'
     
     // 如果需要授权，显示"请先授权"
-    if (needsApproval) return '请先授权'
+    // if (needsApproval) return '请先授权'
     
     // 已授权，可以直接购买
     return '立即购买'
@@ -422,7 +422,8 @@ function CourseListing() {
                   {/* 操作按钮区域 */}
                   <div className="space-y-2">
                     {/* 如果需要授权且余额足够，显示授权按钮和购买按钮在同一行 */}
-                    {!isCreator && !isPurchased && canAfford(course.price) && needsApproval ? (
+                    {/* needsApproval && canAfford(course.price) */}
+                    {!isCreator && !isPurchased    ? (
                       <div className="flex space-x-2">
                         <button
                           onClick={(e) => handleApprove(course, e)}
@@ -493,13 +494,11 @@ function CourseListing() {
                   )}
 
                   {/* 授权提示 */}
-                  {!canUserAccessCourse(course) && canAfford(course.price) && needsApproval && (
                     <div className="text-center">
                       <p className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
                         💡 需要先授权一灯币给课程合约才能购买
                       </p>
                     </div>
-                  )}
                 </div>
               </div>
             </div>
