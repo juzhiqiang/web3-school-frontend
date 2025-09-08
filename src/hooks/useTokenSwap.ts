@@ -529,40 +529,97 @@ export function useTokenSwap(refetchETHBalance?: () => void) {
     }
   };
 
-  const mintAndDepositTestTokens = async (amount: string = "10000"): Promise<SwapResult> => {
+  const mintAndDepositTestTokens = async (amount: string = "10000") => {
     if (!isConnected || !address || !yiDengTokenAddress || !contractAddress) {
-      const errorMsg = '钱包未连接或合约地址未获取';
-      toast.error(errorMsg);
-      return { success: false, error: { code: 4100, message: errorMsg } };
+      toast.error('钱包未连接或合约地址未获取')
+      return
     }
 
     try {
-      setIsLoading(true);
-      const mintAmount = parseUnits(amount, 18);
+      setIsLoading(true)
+      const mintAmount = parseUnits(amount, 18)
       
+      console.log('🏭 开始完整充值流程:', {
+        tokenAddress: yiDengTokenAddress,
+        contractAddress,
+        userAddress: address,
+        amount: amount
+      })
+      
+      // 提示用户需要确认多个交易
       toast.success(`开始充值流程：需要确认3个交易`);
       
+      // 第一步：铸造代币给当前用户
+      console.log('步骤1: 铸造代币')
       await writeContract({
-        address: yiDengTokenAddress as Address,
+        address: yiDengTokenAddress,
         abi: ERC20_ABI,
         functionName: "mint",
         args: [address, mintAmount],
       });
 
       toast.success(`步骤1完成: 已铸造 ${amount} 一灯币到您的账户`);
-      return { success: true, hash: hash?.toString() };
+      
+      // 等待用户确认铸造后，提示下一步
+      setTimeout(async () => {
+        try {
+          // 第二步：授权合约使用用户的代币
+          console.log('步骤2: 授权合约')
+          await writeContract({
+            address: yiDengTokenAddress,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [contractAddress as `0x${string}`, mintAmount],
+          });
+
+          toast.success(`步骤2完成: 已授权合约使用代币`);
+          
+          // 等待授权确认后，执行最后一步
+          setTimeout(async () => {
+            try {
+              // 第三步：调用合约的depositTokens函数
+              console.log('步骤3: 转移代币到合约')
+              await writeContract({
+                address: contractAddress as `0x${string}`,
+                abi: TOKEN_SWAP_ABI,
+                functionName: "depositTokens",
+                args: [mintAmount],
+              });
+
+              toast.success(`✅ 充值完成！${amount} 一灯币已添加到合约中`);
+              
+              // 刷新数据
+              setTimeout(() => refetchAll(), 2000);
+              
+            } catch (err: any) {
+              console.error("步骤3失败:", err);
+              toast.error("转移代币到合约失败：" + (err.message || "未知错误"));
+            }
+          }, 3000); // 等待3秒让授权交易确认
+          
+        } catch (err: any) {
+          console.error("步骤2失败:", err);
+          toast.error("授权合约失败：" + (err.message || "未知错误"));
+        }
+      }, 3000); // 等待3秒让铸造交易确认
+      
     } catch (err: any) {
-      console.error("铸造代币失败:", err);
-      const errorMsg = err.message?.includes("User rejected") 
-        ? "用户取消了操作" 
-        : `铸造失败: ${err.message || '未知错误'}`;
-      toast.error(errorMsg);
-      return { success: false, error: { code: err.code || -1, message: errorMsg } };
+      console.error("步骤1失败:", err);
+      let errorMessage = "铸造代币失败";
+      if (err.message?.includes("User rejected")) {
+        errorMessage = "用户取消了操作";
+      } else if (err.message?.includes("Ownable: caller is not the owner")) {
+        errorMessage = "需要合约所有者权限来铸造代币";
+      } else if (err.message) {
+        errorMessage = `铸造失败: ${err.message}`;
+      }
+      toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      // 注意：这里不立即设置loading为false，因为后续还有步骤
+      // 实际的loading状态会在最后一步完成时设置
+      setTimeout(() => setIsLoading(false), 10000); // 10秒后强制解除loading状态
     }
   }
-
   const depositETHToContract = async (amount: string = "1"): Promise<SwapResult> => {
     if (!isConnected || !address || !contractAddress) {
       const errorMsg = '钱包未连接或合约地址未获取';

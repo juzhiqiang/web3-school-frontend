@@ -7,7 +7,7 @@ export const TOKEN_SWAP_CONFIG = {
     // Sepolia测试网
     11155111: "0x6B31cF03e32CD7aCb1b6D6ad9D32651D43F86dBC",
     // Ganache本地网络
-    1337: "0xf7E75F4fa37b59b5ee1b06de51b0d55f8A0f99d3",
+    1337: "0x374aFE014E74198Cd1BaC25F8C6D5Bc629eC4EFC",
   } as const,
 
   // 代币配置
